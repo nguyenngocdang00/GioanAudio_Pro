@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-    <title>GioanAudio Pro - Bảng Khiển Âm Thanh Văn Nghệ</title>
+    <title>GioanAudio Pro - Bảng điều Khiển Âm Thanh Văn Nghệ</title>
     <script src="config.js"></script><link rel="manifest" href="manifest.webmanifest"><meta name="theme-color" content="#020617">
     <link rel="apple-touch-icon" href="icon-192.png"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="mobile-web-app-capable" content="yes">
     <!-- Bundled Tailwind-compatible utility CSS -->
@@ -2979,7 +2979,7 @@
 
             const audioUrl = await getAudioSourceUrl(track.src);
             if (!audioUrl || /^(idb_|drive:)/.test(audioUrl)) {
-                showToast('File chưa có trên máy. Bấm ☁ Drive → Đồng bộ nhạc về máy.', 'error');
+                showToast(window.missingAudioMsg ? missingAudioMsg(track.src, track.title) : 'File chưa có trên máy.', 'error');
                 activeCueId = null; renderCueList(); return;
             }
 
@@ -3234,7 +3234,7 @@
                 } catch (err) {
                     const audioUrl = await getAudioSourceUrl(sfx.src);
                     if (!audioUrl || /^(idb_|drive:)/.test(audioUrl)) {
-                        showToast(`Không tìm thấy file hiệu ứng "${sfx.name}".`, 'error'); return;
+                        showToast(window.missingAudioMsg ? missingAudioMsg(sfx.src, sfx.name) : `Không tìm thấy file hiệu ứng "${sfx.name}".`, 'error'); return;
                     }
                     const audio = new Audio(audioUrl);
                     audio.preload = 'auto';
@@ -3650,7 +3650,12 @@
     const isDirty = () => { const sn = localStorage.getItem(GD.snap); return sn === null ? (programCues.length > 0 || soundboardSfx.length > 0) : sn !== snapOf(); };
     const playingNow = () => Object.values(activeAudioInstances || {}).some(i => i && (i.type === 'audio' ? (i.audio && !i.audio.paused) : !i.paused));
     const refIds = () => [...new Set([...programCues, ...soundboardSfx].map(x => x.src).filter(s => typeof s === 'string' && s.startsWith('drive:')))];
-    let busy = false;
+    let busy = false, busySince = 0;
+    const TMO = (window.STAGE_CONFIG && window.STAGE_CONFIG.timeoutMs) || 60000;
+    async function fetchT(url, opt) {
+        const ac = new AbortController(), t = setTimeout(() => ac.abort(), TMO);
+        try { return await fetch(url, {...(opt || {}), signal: ac.signal}); } finally { clearTimeout(t); }
+    }
 
     // Đọc: công khai (không cần key). Ghi (POST): luôn cần key quản trị.
     async function call(p, post, tries = 3) {
@@ -3660,7 +3665,7 @@
         for (let i = 0; i < tries; i++) {
             try {
                 const q = {key: c.key, ...p};
-                const r = post ? await fetch(c.url, {method: 'POST', body: JSON.stringify(q)}) : await fetch(c.url + '?' + new URLSearchParams(q));
+                const r = post ? await fetchT(c.url, {method: 'POST', body: JSON.stringify(q)}) : await fetchT(c.url + '?' + new URLSearchParams(q));
                 const j = await r.json();
                 if (!j.ok) throw new Error(j.error || 'Lỗi máy chủ');
                 return j;
@@ -3681,9 +3686,15 @@
             sel.appendChild(g);
         });
     }
+    const localRefs = () => [...programCues.map(x => ({src: x.src, name: x.title})), ...soundboardSfx.map(x => ({src: x.src, name: x.name}))].filter(x => /^idb_/.test(x.src || ''));
+    async function localOnlyMissing() { const out = []; for (const x of localRefs()) if (!(await getAudioFileFromDB(x.src))) out.push(x); return out; }
+    window.missingAudioMsg = (src, name) => /^idb_/.test(src || '')
+        ? `"${name}" dùng file chọn từ máy quản trị, chưa có trên Drive. Quản trị cần bấm ☁ Drive → Lưu kịch bản lên Drive (app sẽ tự tải nhạc lên).`
+        : `Nhạc của "${name}" chưa tải về máy. Bấm ☁ Drive → Đồng bộ ngay và xem dòng lỗi trong bảng.`;
     async function list() {
         const ul = $('gdList'); if (!ul) return;
         const rows = [];
+        for (const x of localRefs()) { const have = !!(await getAudioFileFromDB(x.src)); rows.push(have ? `<li class="no">⚠ ${escapeHtml(x.name)} — file chọn từ máy, CHƯA lên Drive (bấm Lưu kịch bản lên Drive)</li>` : `<li class="no">✗ ${escapeHtml(x.name)} — file chỉ có trên máy quản trị, chưa lên Drive</li>`); }
         for (const s of refIds()) {
             const ok = !!(await getAudioFileFromDB(s)), f = files().find(x => 'drive:' + x.id === s);
             rows.push(`<li class="${ok ? 'ok' : 'no'}">${ok ? '✓ sẵn sàng offline' : '✗ chưa tải'} — ${escapeHtml(f ? f.name : s)}</li>`);
@@ -3726,9 +3737,9 @@
     }
     // Tự động: khi mở app, khi quay lại app, khi có mạng, và mỗi 5 phút. Không đổi kịch bản khi đang phát nhạc.
     async function gdAuto(force) {
-        if (busy) return;
+        if (busy && Date.now() - busySince < 180000) return;
         if (!cfg().url) { status('Chưa cấu hình URL Apps Script (sửa file config.js).'); setFab('☁ Drive ⚠'); return; }
-        busy = true; setFab('☁ Đang đồng bộ…'); let fail = 1;
+        busy = true; busySince = Date.now(); setFab('☁ Đang đồng bộ…'); let fail = 1;
         try {
             const r = await call({action: 'list'});
             localStorage.setItem(GD.files, JSON.stringify(r.files)); fillPresets();
@@ -3742,6 +3753,7 @@
             }
             fail = await syncFiles(r.files);
         } catch (e) { status('Lỗi: ' + e.message); }
+        try { const miss = await localOnlyMissing(); if (miss.length) { fail += miss.length; status(isAdmin() ? `${miss.length} mục dùng file chọn từ máy chưa lên Drive — bấm "Lưu kịch bản lên Drive".` : `${miss.length} mục dùng file chỉ có trên máy quản trị (chưa lên Drive). Báo quản trị bấm "Lưu kịch bản lên Drive".`); } } catch (e) {}
         busy = false; setFab(fail ? '☁ Drive ⚠' : '☁ Drive ✓'); await list();
     }
     window.gdSyncNow = () => gdAuto(true);
@@ -3756,14 +3768,49 @@
         renderAdmin();
     };
     window.gdLogout = () => { localStorage.removeItem(GD.key); localStorage.removeItem(GD.admin); renderAdmin(); status('Đã đăng xuất quản trị.'); };
-    window.gdPush = async () => {
-        const local = [...programCues, ...soundboardSfx].filter(x => /^idb_/.test(x.src || '')).length;
-        if (local && !confirm(`${local} mục đang dùng file chọn từ máy — máy khác sẽ không phát được. Vẫn lưu lên Drive?`)) return;
+    const b64 = blob => new Promise((res, rej) => { const r = new FileReader(); r.onload = () => res(String(r.result).split(',')[1]); r.onerror = rej; r.readAsDataURL(blob); });
+    const EXT = {'audio/mpeg': 'mp3', 'audio/mp3': 'mp3', 'audio/wav': 'wav', 'audio/x-wav': 'wav', 'audio/mp4': 'm4a', 'audio/x-m4a': 'm4a', 'audio/aac': 'aac', 'audio/ogg': 'ogg', 'audio/flac': 'flac'};
+    // Đưa mọi file chọn từ máy lên Drive, đổi src sang drive:<id> để máy khác tải được.
+    async function uploadLocalFiles() {
+        const locals = [...programCues, ...soundboardSfx].filter(x => /^idb_/.test(x.src || ''));
+        if (!locals.length) return 0;
+        let lib = (await call({action: 'list'})).files; const done = {}, newIds = []; let n = 0;
+        for (const x of locals) {
+            if (done[x.src]) { x.src = done[x.src]; continue; }
+            const label = x.title || x.name || 'nhạc', blob = await getAudioFileFromDB(x.src);
+            if (!blob) throw new Error(`Không tìm thấy file của "${label}" trên máy này — hãy chọn lại file cho mục đó.`);
+            if (blob.size > MAX_UPLOAD) throw new Error(`File của "${label}" quá 20 MB — hãy chép thẳng vào thư mục Drive rồi chọn từ "Thư viện Drive".`);
+            let name = String(x.fileName || label).replace(/\s*\(Mẫu[^)]*\)\s*$/, '').replace(/[\\/:*?"<>|]/g, '_');
+            if (!/\.(mp3|m4a|wav|ogg|aac|flac)$/i.test(name)) name += '.' + (EXT[blob.type] || 'mp3');
+            let hit = lib.find(f => f.name === name && f.size === blob.size), id;
+            if (hit) id = hit.id;
+            else {
+                if (lib.some(f => f.name === name)) name = name.replace(/(\.[^.]+)$/, '-' + Date.now().toString(36) + '$1');
+                status(`Đang tải lên ${name}… (${++n})`);
+                id = (await call({action: 'upload', name, mime: blob.type || 'audio/mpeg', data: await b64(blob)}, true, 1)).id;
+                lib = lib.concat([{id, name, size: blob.size, modified: 0}]);
+            }
+            done[x.src] = 'drive:' + id; newIds.push([id, blob]); x.src = done[x.src]; x.fileName = name;
+        }
+        saveLocalData(); renderCueList(); renderSoundboard();
+        // giữ bản trên máy quản trị để khỏi tải lại
         try {
+            const fresh = (await call({action: 'list'})).files, meta = JSON.parse(localStorage.getItem(GD.meta) || '{}');
+            localStorage.setItem(GD.files, JSON.stringify(fresh)); fillPresets();
+            for (const [id, blob] of newIds) { const f = fresh.find(z => z.id === id); await saveAudioFileToDB('drive:' + id, blob); if (f) meta[id] = f.modified; }
+            localStorage.setItem(GD.meta, JSON.stringify(meta));
+        } catch (e) {}
+        return n;
+    }
+    window.gdPush = async () => {
+        try {
+            status('Đang kiểm tra file nhạc…');
+            const up = await uploadLocalFiles();
             status('Đang lưu kịch bản lên Drive…');
             const r = await call({action: 'saveManifest', manifest: {programCues, soundboardSfx, savedAt: new Date().toISOString()}}, true, 1);
             localStorage.setItem(GD.ver, String(r.modified || 0)); localStorage.setItem(GD.snap, snapOf());
-            status('Đã lưu kịch bản lên Drive. Các máy khác sẽ tự cập nhật.');
+            status(`Đã lưu kịch bản lên Drive${up ? ` (kèm ${up} file nhạc tải lên)` : ''}. Các máy khác sẽ tự cập nhật.`);
+            await list();
         } catch (e) { status('Lỗi: ' + e.message); }
     };
     window.gdUpload = () => {
