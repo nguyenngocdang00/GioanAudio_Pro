@@ -3,8 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-    <title>GioanAudio Pro - Điều Khiển Âm Thanh Văn Nghệ</title>
-    <link rel="manifest" href="manifest.webmanifest"><meta name="theme-color" content="#020617">
+    <title>GioanAudio Pro - Bảng Khiển Âm Thanh Văn Nghệ</title>
+    <script src="config.js"></script><link rel="manifest" href="manifest.webmanifest"><meta name="theme-color" content="#020617">
     <link rel="apple-touch-icon" href="icon-192.png"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="mobile-web-app-capable" content="yes">
     <!-- Bundled Tailwind-compatible utility CSS -->
     <style id="tailwind-bundled">/*! tailwindcss v4.1.10 | MIT License | https://tailwindcss.com */
@@ -1582,7 +1582,7 @@
             </div>
             <div>
                 <h1 class="font-extrabold text-lg tracking-tight text-white flex items-center gap-2">
-                    StageAudio Pro <span class="text-xs bg-indigo-950 text-indigo-400 border border-indigo-800/60 font-semibold px-2 py-0.5 rounded-full">v3.0 Drive</span>
+                    StageAudio Pro <span class="text-xs bg-indigo-950 text-indigo-400 border border-indigo-800/60 font-semibold px-2 py-0.5 rounded-full">v3.1 Drive</span>
                 </h1>
                 <div class="flex items-center gap-2">
                     <p class="text-xs text-slate-400">Điều khiển kịch bản & hiệu ứng âm thanh sân khấu</p>
@@ -2298,69 +2298,9 @@
         let stageWindow = null;         // Feature 5: Stage Display Pop-up Window Reference
 
         // Default Program Cues with Hot Cues (Feature 4)
-        let programCues = [
-            {
-                id: 'cue_1',
-                title: '01. Nhạc Mở Màn - Khai Mạc Chương Trình',
-                note: 'Bật khi đèn sân khấu sáng lên, MC đi ra',
-                src: 'synth_intro',
-                fileName: 'Nhạc_Khai_Mạc.mp3 (Mẫu Synthetic)',
-                hotkey: 'F1',
-                loop: false,
-                volume: 1,
-                hotCues: [
-                    { label: 'Dạo đầu', time: 0 },
-                    { label: 'Cao trào 1', time: 15 }
-                ]
-            },
-            {
-                id: 'cue_2',
-                title: '02. Nhạc Nền Giới Thiệu Đại Biểu',
-                note: 'Bật nhẹ vừa phải dưới lời MC',
-                src: 'synth_bgm',
-                fileName: 'Nhạc_Nền_Trao_Giải.mp3 (Mẫu Synthetic)',
-                hotkey: 'F2',
-                loop: true,
-                volume: 0.7,
-                hotCues: [
-                    { label: 'MC chào', time: 5 }
-                ]
-            },
-            {
-                id: 'cue_3',
-                title: '03. Tiết Mục 1: Múa Hát Cánh Chim Tuổi Trẻ',
-                note: 'Đoàn vũ công chuẩn bị đạo cụ',
-                src: 'synth_intro',
-                fileName: 'TietMuc1_MuaHat.mp3 (Mẫu)',
-                hotkey: 'F3',
-                loop: false,
-                volume: 1,
-                hotCues: [
-                    { label: 'Vũ đạo 1', time: 10 },
-                    { label: 'Điệp khúc', time: 45 }
-                ]
-            },
-            {
-                id: 'cue_4',
-                title: '04. Nhạc Trao Giải & Tặng Hoa',
-                note: 'Bật hào hùng khi xướng tên trao giải',
-                src: 'synth_fanfare',
-                fileName: 'Nhạc_Trao_Giải.mp3 (Mẫu)',
-                hotkey: 'F4',
-                loop: true,
-                volume: 0.9,
-                hotCues: []
-            }
-        ];
+        let programCues = [];
 
-        let soundboardSfx = [
-            { id: 'sfx_1', name: 'Trả Lời ĐÚNG', color: 'emerald', src: 'synth_correct', hotkey: '1' },
-            { id: 'sfx_2', name: 'Trả Lời SAI', color: 'rose', src: 'synth_wrong', hotkey: '2' },
-            { id: 'sfx_3', name: 'RAPIQ / Kịch Tính', color: 'amber', src: 'synth_rapiq', hotkey: '3' },
-            { id: 'sfx_4', name: 'Tiếng Vỗ Tay', color: 'purple', src: 'synth_applause', hotkey: '4' },
-            { id: 'sfx_5', name: 'Tung Hô Trao Giải', color: 'indigo', src: 'synth_fanfare', hotkey: '5' },
-            { id: 'sfx_6', name: 'Đếm Ngược 1s', color: 'amber', src: 'synth_countdown', hotkey: '6' }
-        ];
+        let soundboardSfx = [];
 
         /* PERSISTENCE HELPERS */
         function loadLocalData() {
@@ -3695,31 +3635,43 @@
         };
     </script>
 <script>
-/* ===== v3: Google Drive library + PWA ===== */
+/* ===== v3.1: tự động đồng bộ Drive + quản trị + PWA ===== */
 (function () {
-    const GD = {url:'stage_audio_gas_url', key:'stage_audio_gas_key', files:'stage_audio_drive_files', meta:'stage_audio_drive_meta'};
-    const CHUNK = 6 * 1024 * 1024, $ = id => document.getElementById(id), sleep = ms => new Promise(r => setTimeout(r, ms));
-    const cfg = () => ({url: localStorage.getItem(GD.url) || '', key: localStorage.getItem(GD.key) || ''});
+    const GD = {url:'stage_audio_gas_url', key:'stage_audio_gas_key', admin:'stage_audio_admin', files:'stage_audio_drive_files',
+                meta:'stage_audio_drive_meta', ver:'stage_audio_manifest_ver', snap:'stage_audio_snapshot', mig:'stage_audio_nodefaults'};
+    const DEFAULTS = {"cues": {"cue_1": "01. Nhạc Mở Màn - Khai Mạc Chương Trình", "cue_2": "02. Nhạc Nền Giới Thiệu Đại Biểu", "cue_3": "03. Tiết Mục 1: Múa Hát Cánh Chim Tuổi Trẻ", "cue_4": "04. Nhạc Trao Giải & Tặng Hoa"}, "sfx": {"sfx_1": "Trả Lời ĐÚNG", "sfx_2": "Trả Lời SAI", "sfx_3": "RAPIQ / Kịch Tính", "sfx_4": "Tiếng Vỗ Tay", "sfx_5": "Tung Hô Trao Giải", "sfx_6": "Đếm Ngược 1s"}};
+    const CHUNK = 6 * 1024 * 1024, MAX_UPLOAD = 20 * 1024 * 1024, $ = id => document.getElementById(id), sleep = ms => new Promise(r => setTimeout(r, ms));
+    const cfg = () => ({url: (window.STAGE_CONFIG && window.STAGE_CONFIG.gasUrl) || localStorage.getItem(GD.url) || '', key: localStorage.getItem(GD.key) || ''});
+    const isAdmin = () => localStorage.getItem(GD.admin) === '1';
     const files = () => { try { return JSON.parse(localStorage.getItem(GD.files) || '[]'); } catch (e) { return []; } };
     const status = t => { const e = $('gdStatus'); if (e) e.textContent = t; };
+    const setFab = t => { const f = $('gdFab'); if (f) f.textContent = t; };
+    const snapOf = () => JSON.stringify({c: programCues, s: soundboardSfx});
+    const isDirty = () => { const sn = localStorage.getItem(GD.snap); return sn === null ? (programCues.length > 0 || soundboardSfx.length > 0) : sn !== snapOf(); };
+    const playingNow = () => Object.values(activeAudioInstances || {}).some(i => i && (i.type === 'audio' ? (i.audio && !i.audio.paused) : !i.paused));
+    const refIds = () => [...new Set([...programCues, ...soundboardSfx].map(x => x.src).filter(s => typeof s === 'string' && s.startsWith('drive:')))];
+    let busy = false;
 
-    async function call(p, post) {
+    // Đọc: công khai (không cần key). Ghi (POST): luôn cần key quản trị.
+    async function call(p, post, tries = 3) {
         const c = cfg();
-        if (!c.url || !c.key) throw new Error('Chưa kết nối: bấm "Kết nối" và nhập URL + API key');
+        if (!c.url) throw new Error('Chưa cấu hình URL Apps Script (sửa file config.js)');
         let last;
-        for (let i = 0; i < 3; i++) {
+        for (let i = 0; i < tries; i++) {
             try {
-                const r = post ? await fetch(c.url, {method:'POST', body: JSON.stringify({...p, key: c.key})})
-                               : await fetch(c.url + '?' + new URLSearchParams({...p, key: c.key}));
+                const q = {key: c.key, ...p};
+                const r = post ? await fetch(c.url, {method: 'POST', body: JSON.stringify(q)}) : await fetch(c.url + '?' + new URLSearchParams(q));
                 const j = await r.json();
                 if (!j.ok) throw new Error(j.error || 'Lỗi máy chủ');
                 return j;
-            } catch (e) { last = e; if (/API key/.test(e.message)) break; await sleep(800 * (i + 1)); }
+            } catch (e) { last = e; if (/API key/.test(e.message)) break; if (i < tries - 1) await sleep(800 * (i + 1)); }
         }
         throw last;
     }
-    const refIds = () => [...new Set([...programCues, ...soundboardSfx].map(x => x.src).filter(s => typeof s === 'string' && s.startsWith('drive:')))];
-
+    async function delKey(k) {
+        const db = await openAudioDB();
+        await new Promise(res => { const t = db.transaction(IDB_STORE, 'readwrite'); t.objectStore(IDB_STORE).delete(k); t.oncomplete = t.onerror = t.onabort = () => res(); });
+    }
     function fillPresets() {
         ['trackPresetSelect', 'sfxPresetSelect'].forEach(id => {
             const sel = $(id); if (!sel) return;
@@ -3738,36 +3690,23 @@
         }
         ul.innerHTML = rows.join('') || '<li>Chưa có mục nào dùng nhạc từ Drive.</li>';
     }
-
-    window.gdSettings = () => {
-        const c = cfg();
-        const u = prompt('Dán URL Web App (kết thúc bằng /exec):', c.url); if (u === null) return;
-        const k = prompt('Nhập API key (xem trong Nhật ký thực thi khi chạy hàm setup):', c.key); if (k === null) return;
-        localStorage.setItem(GD.url, u.trim()); localStorage.setItem(GD.key, k.trim());
-        window.gdRefresh();
-    };
-    window.gdRefresh = async () => {
-        try {
-            status('Đang đọc thư viện…');
-            const r = await call({action: 'list'});
-            localStorage.setItem(GD.files, JSON.stringify(r.files)); fillPresets();
-            status(`Thư viện Drive: ${r.files.length} file nhạc.`);
-        } catch (e) { status('Lỗi: ' + e.message); }
-        await list();
-    };
-    window.gdSync = async () => {
-        const ids = refIds();
-        if (!ids.length) return status('Chưa có tiết mục nào dùng nhạc từ Drive.');
-        try {
-            navigator.storage?.persist?.();
-            if (!files().length) await window.gdRefresh();
-            const meta = JSON.parse(localStorage.getItem(GD.meta) || '{}'); let n = 0;
-            for (const src of ids) {
-                const id = src.slice(6), lib = files().find(f => f.id === id), name = lib ? lib.name : id;
-                if (await getAudioFileFromDB(src) && (!lib || meta[id] === lib.modified)) { n++; continue; }
+    function applyManifest(m, ver) {
+        programCues = m.programCues.map(normalizeImportedCue).filter(Boolean);
+        soundboardSfx = (m.soundboardSfx || []).map(normalizeImportedSfx).filter(Boolean);
+        saveLocalData(); renderCueList(); renderSoundboard();
+        localStorage.setItem(GD.ver, String(ver)); localStorage.setItem(GD.snap, snapOf());
+    }
+    async function syncFiles(lib) {
+        const ids = refIds(), meta = JSON.parse(localStorage.getItem(GD.meta) || '{}'); let ok = 0, fail = 0;
+        navigator.storage?.persist?.();
+        for (const src of ids) {
+            const id = src.slice(6), f = lib.find(x => x.id === id), name = f ? f.name : id;
+            try {
+                if (await getAudioFileFromDB(src) && (!f || meta[id] === f.modified)) { ok++; continue; }
+                if (!f) throw new Error('không còn trên Drive');
                 const parts = []; let off = 0, total = Infinity, mime = 'audio/mpeg', mod = 0;
                 while (off < total) {
-                    status(`Tải ${name}: ${(off / 1048576).toFixed(0)} MB (${n + 1}/${ids.length})`);
+                    setFab(`☁ ${ok + 1}/${ids.length} · ${(off / 1048576).toFixed(0)}MB`); status(`Đang tải ${name}…`);
                     const r = await call({action: 'file', id, offset: off, len: CHUNK});
                     const bin = atob(r.data), u = new Uint8Array(bin.length);
                     for (let i = 0; i < bin.length; i++) u[i] = bin.charCodeAt(i);
@@ -3776,51 +3715,105 @@
                     if (/^(audio|video)\//.test(r.mime || '')) mime = r.mime;
                 }
                 await saveAudioFileToDB(src, new Blob(parts, {type: mime}));
-                if (!await getAudioFileFromDB(src)) throw new Error('Không lưu được ' + name + ' vào bộ nhớ máy (đầy bộ nhớ?)');
-                meta[id] = mod; localStorage.setItem(GD.meta, JSON.stringify(meta)); n++;
+                if (!await getAudioFileFromDB(src)) throw new Error('đầy bộ nhớ máy?');
+                meta[id] = mod; localStorage.setItem(GD.meta, JSON.stringify(meta)); ok++;
+            } catch (e) { fail++; status(`Lỗi tải ${name}: ${e.message}`); }
+        }
+        const keep = new Set(ids);
+        for (const k of await getAllAudioKeysFromDB()) if (String(k).startsWith('drive:') && !keep.has(k)) await delKey(k);
+        if (!fail && ids.length) status(`Đã đồng bộ: ${ok}/${ids.length} file nhạc sẵn sàng offline.`);
+        return fail;
+    }
+    // Tự động: khi mở app, khi quay lại app, khi có mạng, và mỗi 5 phút. Không đổi kịch bản khi đang phát nhạc.
+    async function gdAuto(force) {
+        if (busy) return;
+        if (!cfg().url) { status('Chưa cấu hình URL Apps Script (sửa file config.js).'); setFab('☁ Drive ⚠'); return; }
+        busy = true; setFab('☁ Đang đồng bộ…'); let fail = 1;
+        try {
+            const r = await call({action: 'list'});
+            localStorage.setItem(GD.files, JSON.stringify(r.files)); fillPresets();
+            const m = r.manifest, ver = r.manifestModified || 0;
+            if (!m) status('Drive chưa có kịch bản (quản trị bấm "Lưu kịch bản lên Drive").');
+            else if (Array.isArray(m.programCues) && (force || ver !== Number(localStorage.getItem(GD.ver) || 0))) {
+                if (playingNow()) status('Có kịch bản mới — sẽ áp dụng khi dừng nhạc.');
+                else if (isAdmin() && isDirty() && !(force && confirm('Máy này có thay đổi chưa lưu lên Drive. Ghi đè bằng bản trên Drive?')))
+                    status('Máy quản trị có thay đổi chưa lưu — chưa ghi đè bằng bản trên Drive.');
+                else { applyManifest(m, ver); status('Đã cập nhật kịch bản từ Drive.'); }
             }
-            status(`Xong: ${n}/${ids.length} file đã sẵn sàng offline.`);
+            fail = await syncFiles(r.files);
         } catch (e) { status('Lỗi: ' + e.message); }
-        await list();
+        busy = false; setFab(fail ? '☁ Drive ⚠' : '☁ Drive ✓'); await list();
+    }
+    window.gdSyncNow = () => gdAuto(true);
+
+    // ----- Quản trị (cần API key): lưu kịch bản + tải nhạc lên -----
+    function renderAdmin() { $('gdAdminOn').style.display = isAdmin() ? '' : 'none'; $('gdAdminOff').style.display = isAdmin() ? 'none' : ''; }
+    window.gdLogin = async () => {
+        if (!cfg().url) { const u = prompt('Dán URL Web App (kết thúc bằng /exec):', ''); if (!u) return; localStorage.setItem(GD.url, u.trim()); }
+        const k = prompt('Nhập API key quản trị:', ''); if (!k) return;
+        try { await call({action: 'auth', key: k.trim()}, false, 1); localStorage.setItem(GD.key, k.trim()); localStorage.setItem(GD.admin, '1'); status('Đã đăng nhập quản trị.'); }
+        catch (e) { status('Lỗi: ' + e.message); }
+        renderAdmin();
     };
+    window.gdLogout = () => { localStorage.removeItem(GD.key); localStorage.removeItem(GD.admin); renderAdmin(); status('Đã đăng xuất quản trị.'); };
     window.gdPush = async () => {
+        const local = [...programCues, ...soundboardSfx].filter(x => /^idb_/.test(x.src || '')).length;
+        if (local && !confirm(`${local} mục đang dùng file chọn từ máy — máy khác sẽ không phát được. Vẫn lưu lên Drive?`)) return;
         try {
             status('Đang lưu kịch bản lên Drive…');
-            await call({action: 'saveManifest', manifest: {programCues, soundboardSfx, savedAt: new Date().toISOString()}}, true);
-            status('Đã lưu kịch bản lên Drive.');
+            const r = await call({action: 'saveManifest', manifest: {programCues, soundboardSfx, savedAt: new Date().toISOString()}}, true, 1);
+            localStorage.setItem(GD.ver, String(r.modified || 0)); localStorage.setItem(GD.snap, snapOf());
+            status('Đã lưu kịch bản lên Drive. Các máy khác sẽ tự cập nhật.');
         } catch (e) { status('Lỗi: ' + e.message); }
     };
-    window.gdPull = async () => {
-        if (isLiveLocked) return status('Đang bật Live Lock — tắt khóa để tải kịch bản.');
-        try {
-            const r = await call({action: 'list'}), m = r.manifest;
-            if (!m || !Array.isArray(m.programCues)) return status('Drive chưa có kịch bản đã lưu.');
-            if (!confirm('Thay kịch bản hiện tại bằng bản trên Drive?')) return;
-            stopAllAudio(true);
-            programCues = m.programCues.map(normalizeImportedCue);
-            soundboardSfx = (m.soundboardSfx || []).map(normalizeImportedSfx);
-            localStorage.setItem(GD.files, JSON.stringify(r.files)); fillPresets();
-            saveLocalData(); renderCueList(); renderSoundboard();
-            status('Đã tải kịch bản. Bấm "Đồng bộ nhạc về máy" để tải file.');
-        } catch (e) { status('Lỗi: ' + e.message); }
-        await list();
+    window.gdUpload = () => {
+        const inp = document.createElement('input'); inp.type = 'file'; inp.multiple = true; inp.accept = 'audio/*,.mp3,.m4a,.wav,.ogg,.aac,.flac';
+        inp.onchange = async () => {
+            for (const f of inp.files) {
+                try {
+                    if (f.size > MAX_UPLOAD) throw new Error('quá 20 MB — hãy chép trực tiếp vào thư mục Drive');
+                    status(`Đang tải lên ${f.name}…`);
+                    const data = await new Promise((res, rej) => { const r = new FileReader(); r.onload = () => res(String(r.result).split(',')[1]); r.onerror = rej; r.readAsDataURL(f); });
+                    await call({action: 'upload', name: f.name, mime: f.type || 'audio/mpeg', data}, true, 1);
+                    status(`Đã tải lên ${f.name}`);
+                } catch (e) { status(`Lỗi ${f.name}: ${e.message}`); }
+            }
+            try { const r = await call({action: 'list'}); localStorage.setItem(GD.files, JSON.stringify(r.files)); fillPresets(); } catch (e) {}
+        };
+        inp.click();
     };
-    window.gdOpen = () => { $('gdModal').hidden = false; list(); };
+    window.gdOpen = () => { $('gdModal').hidden = false; renderAdmin(); list(); };
     window.gdClose = () => { $('gdModal').hidden = true; };
 
-    document.body.insertAdjacentHTML('beforeend', `<div id="gdModal" hidden><div class="gd-card"><h3>☁ Google Drive</h3><div id="gdStatus"></div>
-    <button onclick="gdSettings()">Kết nối</button><button onclick="gdRefresh()">Làm mới thư viện</button>
-    <button onclick="gdSync()">Đồng bộ nhạc về máy</button><button onclick="gdPush()">Lưu kịch bản lên Drive</button>
-    <button onclick="gdPull()">Tải kịch bản từ Drive</button><ul id="gdList"></ul><button onclick="gdClose()">Đóng</button></div></div>`);
+    document.body.insertAdjacentHTML('beforeend', `<div id="gdModal" hidden><div class="gd-card"><h3>☁ Đồng bộ Google Drive</h3><div id="gdStatus"></div>
+    <button onclick="gdSyncNow()">Đồng bộ ngay</button><ul id="gdList"></ul>
+    <div id="gdAdminOff"><button onclick="gdLogin()">🔑 Đăng nhập quản trị</button></div>
+    <div id="gdAdminOn" style="display:none"><button onclick="gdPush()">Lưu kịch bản lên Drive</button><button onclick="gdUpload()">Tải nhạc lên Drive</button><button onclick="gdLogout()">Đăng xuất</button></div>
+    <button onclick="gdClose()">Đóng</button></div></div>`);
     const fab = document.createElement('button');
     fab.id = 'gdFab'; fab.textContent = '☁ Drive'; fab.onclick = window.gdOpen;
     fab.className = 'px-2.5 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg text-xs font-bold flex items-center gap-1 transition';
     (document.querySelector('header > div:last-child') || document.body).appendChild(fab);
-    fillPresets();
 
-    // iPhone: phát âm thanh kể cả khi gạt công tắc im lặng (iOS 17+)
+    // Chạy sau khi app đã nạp dữ liệu từ localStorage (window.onload của app chính)
+    function start() {
+        // Dọn một lần: bỏ tiết mục/hiệu ứng mẫu cũ đã lưu trên máy (chỉ khi còn nguyên bản mẫu)
+        if (!localStorage.getItem(GD.mig)) {
+            const n = programCues.length + soundboardSfx.length;
+            programCues = programCues.filter(c => !(DEFAULTS.cues[c.id] === c.title && /^synth_/.test(c.src || '')));
+            soundboardSfx = soundboardSfx.filter(x => !(DEFAULTS.sfx[x.id] === x.name && /^synth_/.test(x.src || '')));
+            if (programCues.length + soundboardSfx.length !== n) { saveLocalData(); renderCueList(); renderSoundboard(); }
+            localStorage.setItem(GD.mig, '1');
+        }
+        fillPresets(); renderAdmin();
+        setTimeout(() => gdAuto(), 300);
+        document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') gdAuto(); });
+        window.addEventListener('online', () => gdAuto());
+        setInterval(() => gdAuto(), 5 * 60 * 1000);
+    }
+    if (document.readyState === 'complete') start(); else window.addEventListener('load', start);
+
     try { if (navigator.audioSession) navigator.audioSession.type = 'playback'; } catch (e) {}
-    // Giữ màn hình sáng khi đang diễn
     let wl = null; const lock = async () => { try { wl = await navigator.wakeLock?.request('screen'); } catch (e) {} };
     document.addEventListener('click', () => { if (!wl) lock(); });
     document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') lock(); });
