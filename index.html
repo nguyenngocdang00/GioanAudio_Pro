@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-    <title>GioanAudio Pro - Bảng điều Khiển Âm Thanh Văn Nghệ</title>
+    <title>GioanAudio Pro - Bảng Điều Khiển Âm Thanh Văn Nghệ</title>
     <script src="config.js"></script><link rel="manifest" href="manifest.webmanifest"><meta name="theme-color" content="#020617">
     <link rel="apple-touch-icon" href="icon-192.png"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="mobile-web-app-capable" content="yes">
     <!-- Bundled Tailwind-compatible utility CSS -->
@@ -1553,6 +1553,12 @@
 .gd-card button{margin:3px;padding:8px 10px;border-radius:8px;background:#1e293b;border:1px solid #334155;color:#e2e8f0;font-weight:600}
 .gd-card li{list-style:none;padding:2px 0}.gd-card li.ok{color:#34d399}.gd-card li.no{color:#fb7185}
 
+.drag-handle{display:inline-flex;align-items:center;justify-content:center;min-width:30px;height:30px;margin:-4px 2px -4px -8px;color:#64748b;cursor:grab;touch-action:none;user-select:none;-webkit-user-select:none;-webkit-touch-callout:none;border-radius:8px;flex:none}
+.drag-handle:hover{color:#a5b4fc;background:#1e293b}
+.sort-clone{position:fixed!important;z-index:80;pointer-events:none!important;opacity:.93;box-shadow:0 14px 34px #000b;transform:rotate(1deg) scale(1.02);transition:none!important;margin:0!important}
+.sort-ghost{opacity:.3!important;outline:2px dashed #6366f1;outline-offset:-2px}
+body.sorting,body.sorting *{cursor:grabbing!important;user-select:none!important;-webkit-user-select:none!important}
+
 @media (max-width:767px){
  html,body{height:auto!important;min-height:100%}
  html{scroll-padding-bottom:150px;scroll-padding-top:12px}
@@ -2720,10 +2726,11 @@
                 const lockClass = isLiveLocked ? 'live-locked-disabled' : '';
 
                 return `
-                    <div id="cue_card_${escapeHtml(item.id)}" class="bg-slate-900 border ${cardBorderClass} p-3.5 rounded-xl transition duration-200 shadow-md relative">
+                    <div id="cue_card_${escapeHtml(item.id)}" data-sortid="${escapeHtml(item.id)}" class="bg-slate-900 border ${cardBorderClass} p-3.5 rounded-xl transition duration-200 shadow-md relative">
                         <div class="flex items-start justify-between gap-3">
                             <div class="flex-1 min-w-0">
                                 <div class="flex items-center gap-2">
+                                    <span class="drag-handle ${lockClass}" title="Kéo để sắp xếp" onclick="event.stopPropagation()"><svg width="10" height="16" viewBox="0 0 10 16" aria-hidden="true"><g fill="currentColor"><circle cx="2.5" cy="3" r="1.4"/><circle cx="7.5" cy="3" r="1.4"/><circle cx="2.5" cy="8" r="1.4"/><circle cx="7.5" cy="8" r="1.4"/><circle cx="2.5" cy="13" r="1.4"/><circle cx="7.5" cy="13" r="1.4"/></g></svg></span>
                                     <span class="text-xs font-mono font-bold px-1.5 py-0.5 rounded ${isPlaying ? 'bg-emerald-500/20 text-emerald-400' : (isPaused ? 'bg-amber-500/20 text-amber-400' : 'bg-slate-800 text-slate-400')}">
                                         #${index + 1}
                                     </span>
@@ -2858,7 +2865,7 @@
                 }[sfx.color] || 'bg-slate-800 text-slate-300';
 
                 return `
-                    <div class="group relative flex flex-col justify-between p-3 rounded-xl border ${isPlaying ? 'sfx-playing border-rose-500' : (colorClasses[sfx.color] || 'bg-slate-800 border-slate-700')} transition-all duration-150 cursor-pointer shadow-md select-none"
+                    <div data-sortid="${escapeHtml(sfx.id)}" class="group relative flex flex-col justify-between p-3 rounded-xl border ${isPlaying ? 'sfx-playing border-rose-500' : (colorClasses[sfx.color] || 'bg-slate-800 border-slate-700')} transition-all duration-150 cursor-pointer shadow-md select-none"
                          onclick="triggerSfx(${jsArg(sfx.id)})">
                         
                         <div class="flex items-start justify-between">
@@ -2882,6 +2889,7 @@
                             `}
                             
                             <div class="flex items-center gap-1">
+                                <span class="drag-handle ${lockClass}" title="Kéo để sắp xếp" onclick="event.stopPropagation()"><svg width="10" height="16" viewBox="0 0 10 16" aria-hidden="true"><g fill="currentColor"><circle cx="2.5" cy="3" r="1.4"/><circle cx="7.5" cy="3" r="1.4"/><circle cx="2.5" cy="8" r="1.4"/><circle cx="7.5" cy="8" r="1.4"/><circle cx="2.5" cy="13" r="1.4"/><circle cx="7.5" cy="13" r="1.4"/></g></svg></span>
                                 <button onclick="event.stopPropagation(); editSfx(${jsArg(sfx.id)})" class="p-1 text-slate-400 hover:text-indigo-400 transition ${lockClass}" title="Sửa">
                                     <i class="fa-solid fa-pen text-[11px]"></i>
                                 </button>
@@ -3865,6 +3873,76 @@
     document.addEventListener('click', () => { if (!wl) lock(); });
     document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') lock(); });
     if ('serviceWorker' in navigator && location.protocol.startsWith('http')) navigator.serviceWorker.register('sw.js').catch(() => {});
+})();
+</script>
+<script>
+/* ===== Kéo thả sắp xếp tiết mục & hiệu ứng (chuột + cảm ứng) ===== */
+(function () {
+    const CFG = [
+        {box: 'cueListContainer', vertical: true, list: () => programCues, set: a => { programCues = a; }},
+        {box: 'soundboardGrid', vertical: false, list: () => soundboardSfx, set: a => { soundboardSfx = a; }}
+    ];
+    const ORIG = {cue: window.renderCueList, sfx: window.renderSoundboard};
+    let drag = null, pending = false, noClickUntil = 0;
+    // Không vẽ lại danh sách khi đang kéo (sẽ vẽ lại ngay sau khi thả)
+    window.renderCueList = function () { if (drag) { pending = true; return; } return ORIG.cue.apply(this, arguments); };
+    window.renderSoundboard = function () { if (drag) { pending = true; return; } return ORIG.sfx.apply(this, arguments); };
+
+    function scrollerOf(el) {
+        for (let n = el; n && n !== document.body && n !== document.documentElement; n = n.parentElement) {
+            const oy = getComputedStyle(n).overflowY;
+            if ((oy === 'auto' || oy === 'scroll') && n.scrollHeight > n.clientHeight + 2) return n;
+        }
+        return window;
+    }
+    function place() {
+        const d = drag; if (!d) return;
+        d.clone.style.left = (d.cfg.vertical ? d.left0 : d.x - d.dx) + 'px'; d.clone.style.top = (d.y - d.dy) + 'px';
+        const t = document.elementFromPoint(d.x, d.y), over = t && t.closest && t.closest('[data-sortid]');
+        if (!over || over === d.item || over.parentElement !== d.box) return;
+        const kids = [...d.box.children], after = kids.indexOf(d.item) < kids.indexOf(over), r = over.getBoundingClientRect();
+        if (d.cfg.vertical && (after ? d.y < r.top + r.height / 2 : d.y > r.top + r.height / 2)) return;   // chống nhảy qua lại
+        d.box.insertBefore(d.item, after ? over.nextSibling : over);
+    }
+    function tick() {
+        const d = drag; if (!d) return;
+        const s = d.scroller, win = s === window, rect = win ? null : s.getBoundingClientRect();
+        const top = win ? 0 : rect.top, bot = win ? innerHeight - (innerWidth < 768 ? 100 : 0) : rect.bottom, zone = 70;
+        let dy = 0;
+        if (d.y < top + zone) dy = -Math.min(24, Math.ceil((top + zone - d.y) / 4));
+        else if (d.y > bot - zone) dy = Math.min(24, Math.ceil((d.y - (bot - zone)) / 4));
+        if (dy) { if (win) window.scrollBy(0, dy); else s.scrollTop += dy; place(); }
+        d.raf = requestAnimationFrame(tick);
+    }
+    document.addEventListener('pointerdown', e => {
+        const h = e.target.closest && e.target.closest('.drag-handle'); if (!h || drag) return;
+        if (e.pointerType === 'mouse' && e.button !== 0) return;
+        if (isLiveLocked) { showToast('Đang bật Live Lock Mode!', 'error'); return; }
+        const cfg = CFG.find(c => h.closest('#' + c.box)); if (!cfg) return;
+        const item = h.closest('[data-sortid]'), box = document.getElementById(cfg.box); if (!item || item.parentElement !== box) return;
+        e.preventDefault();
+        const r = item.getBoundingClientRect(), clone = item.cloneNode(true);
+        clone.removeAttribute('id'); clone.querySelectorAll('[id]').forEach(n => n.removeAttribute('id')); clone.classList.add('sort-clone');
+        Object.assign(clone.style, {width: r.width + 'px', height: r.height + 'px', left: r.left + 'px', top: r.top + 'px'});
+        document.body.appendChild(clone); item.classList.add('sort-ghost'); document.body.classList.add('sorting');
+        drag = {cfg, item, box, clone, h, left0: r.left, id: e.pointerId, dx: e.clientX - r.left, dy: e.clientY - r.top, x: e.clientX, y: e.clientY, scroller: scrollerOf(box), raf: 0};
+        try { h.setPointerCapture(e.pointerId); } catch (_) {}
+        drag.raf = requestAnimationFrame(tick);
+    });
+    document.addEventListener('pointermove', e => { if (drag && e.pointerId === drag.id) { drag.x = e.clientX; drag.y = e.clientY; place(); } });
+    function finish(e, cancel) {
+        const d = drag; if (!d || e.pointerId !== d.id) return;
+        cancelAnimationFrame(d.raf); d.clone.remove(); d.item.classList.remove('sort-ghost'); document.body.classList.remove('sorting');
+        const ids = [...d.box.children].map(n => n.dataset && n.dataset.sortid).filter(Boolean), cur = d.cfg.list();
+        const changed = !cancel && ids.length === cur.length && ids.some((id, i) => id !== cur[i].id);
+        drag = null; noClickUntil = Date.now() + 300;
+        if (changed) { const m = new Map(cur.map(x => [x.id, x])); d.cfg.set(ids.map(id => m.get(id))); saveLocalData(); showToast('Đã đổi thứ tự. Quản trị nhớ bấm ☁ Drive → Lưu kịch bản lên Drive.', 'info'); }
+        ORIG.cue(); ORIG.sfx(); pending = false;
+    }
+    document.addEventListener('pointerup', e => finish(e, false));
+    document.addEventListener('pointercancel', e => finish(e, true));
+    document.addEventListener('click', e => { if (Date.now() < noClickUntil) { e.stopPropagation(); e.preventDefault(); } }, true);
+    document.addEventListener('contextmenu', e => { if (e.target.closest && e.target.closest('.drag-handle')) e.preventDefault(); });
 })();
 </script>
 </body>
