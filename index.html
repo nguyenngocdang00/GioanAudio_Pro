@@ -1552,6 +1552,7 @@
 .gd-card h3{font-weight:800;margin-bottom:6px}#gdStatus{min-height:18px;color:#a5b4fc;margin:6px 0}
 .gd-card button{margin:3px;padding:8px 10px;border-radius:8px;background:#1e293b;border:1px solid #334155;color:#e2e8f0;font-weight:600}
 .gd-card li{list-style:none;padding:2px 0}.gd-card li.ok{color:#34d399}.gd-card li.no{color:#fb7185}
+.gd-who{color:#94a3b8;font-size:11px;margin:4px 3px}
 
 .drag-handle{display:inline-flex;align-items:center;justify-content:center;min-width:30px;height:30px;margin:-4px 2px -4px -8px;color:#64748b;cursor:grab;touch-action:none;user-select:none;-webkit-user-select:none;-webkit-touch-callout:none;border-radius:8px;flex:none}
 .drag-handle:hover{color:#a5b4fc;background:#1e293b}
@@ -1588,7 +1589,7 @@ body.sorting,body.sorting *{cursor:grabbing!important;user-select:none!important
             </div>
             <div>
                 <h1 class="font-extrabold text-lg tracking-tight text-white flex items-center gap-2">
-                    GioanAudio Pro <span class="text-xs bg-indigo-950 text-indigo-400 border border-indigo-800/60 font-semibold px-2 py-0.5 rounded-full">v3.1 Drive</span>
+                    StageAudio Pro <span class="text-xs bg-indigo-950 text-indigo-400 border border-indigo-800/60 font-semibold px-2 py-0.5 rounded-full">v3.1 Drive</span>
                 </h1>
                 <div class="flex items-center gap-2">
                     <p class="text-xs text-slate-400">Điều khiển kịch bản & hiệu ứng âm thanh sân khấu</p>
@@ -3645,12 +3646,16 @@ body.sorting,body.sorting *{cursor:grabbing!important;user-select:none!important
 <script>
 /* ===== v3.1: tự động đồng bộ Drive + quản trị + PWA ===== */
 (function () {
-    const GD = {url:'stage_audio_gas_url', key:'stage_audio_gas_key', admin:'stage_audio_admin', files:'stage_audio_drive_files',
+    const GD = {url:'stage_audio_gas_url', key:'stage_audio_gas_token', admin:'stage_audio_admin2', sess:'stage_audio_session', files:'stage_audio_drive_files',
                 meta:'stage_audio_drive_meta', ver:'stage_audio_manifest_ver', snap:'stage_audio_snapshot', mig:'stage_audio_nodefaults'};
     const DEFAULTS = {"cues": {"cue_1": "01. Nhạc Mở Màn - Khai Mạc Chương Trình", "cue_2": "02. Nhạc Nền Giới Thiệu Đại Biểu", "cue_3": "03. Tiết Mục 1: Múa Hát Cánh Chim Tuổi Trẻ", "cue_4": "04. Nhạc Trao Giải & Tặng Hoa"}, "sfx": {"sfx_1": "Trả Lời ĐÚNG", "sfx_2": "Trả Lời SAI", "sfx_3": "RAPIQ / Kịch Tính", "sfx_4": "Tiếng Vỗ Tay", "sfx_5": "Tung Hô Trao Giải", "sfx_6": "Đếm Ngược 1s"}};
     const CHUNK = 6 * 1024 * 1024, MAX_UPLOAD = 20 * 1024 * 1024, $ = id => document.getElementById(id), sleep = ms => new Promise(r => setTimeout(r, ms));
     const cfg = () => ({url: (window.STAGE_CONFIG && window.STAGE_CONFIG.gasUrl) || localStorage.getItem(GD.url) || '', key: localStorage.getItem(GD.key) || ''});
-    const isAdmin = () => localStorage.getItem(GD.admin) === '1';
+    // Dọn API key cũ (nếu từng lưu bởi bản trước) — từ giờ trình duyệt chỉ giữ phiên tạm thời
+    localStorage.removeItem('stage_audio_gas_key'); localStorage.removeItem('stage_audio_admin');
+    const session = () => { try { return JSON.parse(localStorage.getItem(GD.sess) || 'null'); } catch (e) { return null; } };
+    const isAdmin = () => { const s = session(); return !!(localStorage.getItem(GD.key) && s && s.exp > Date.now()); };
+    const clearSession = () => { [GD.key, GD.admin, GD.sess].forEach(k => localStorage.removeItem(k)); };
     const files = () => { try { return JSON.parse(localStorage.getItem(GD.files) || '[]'); } catch (e) { return []; } };
     const status = t => { const e = $('gdStatus'); if (e) e.textContent = t; };
     const setFab = t => { const f = $('gdFab'); if (f) f.textContent = t; };
@@ -3672,12 +3677,12 @@ body.sorting,body.sorting *{cursor:grabbing!important;user-select:none!important
         let last;
         for (let i = 0; i < tries; i++) {
             try {
-                const q = {key: c.key, ...p};
+                const q = {token: c.key, ...p};
                 const r = post ? await fetchT(c.url, {method: 'POST', body: JSON.stringify(q)}) : await fetchT(c.url + '?' + new URLSearchParams(q));
                 const j = await r.json();
-                if (!j.ok) throw new Error(j.error || 'Lỗi máy chủ');
+                if (!j.ok) { const er = new Error(j.error || 'Lỗi máy chủ'); er.auth = j.code === 'AUTH'; er.noRetry = er.auth || j.code === 'LOGIN'; throw er; }
                 return j;
-            } catch (e) { last = e; if (/API key/.test(e.message)) break; if (i < tries - 1) await sleep(800 * (i + 1)); }
+            } catch (e) { last = e; if (e.auth) { clearSession(); try { renderAdmin(); } catch (_) {} } if (e.noRetry) break; if (i < tries - 1) await sleep(800 * (i + 1)); }
         }
         throw last;
     }
@@ -3767,15 +3772,22 @@ body.sorting,body.sorting *{cursor:grabbing!important;user-select:none!important
     window.gdSyncNow = () => gdAuto(true);
 
     // ----- Quản trị (cần API key): lưu kịch bản + tải nhạc lên -----
-    function renderAdmin() { $('gdAdminOn').style.display = isAdmin() ? '' : 'none'; $('gdAdminOff').style.display = isAdmin() ? 'none' : ''; }
+    function renderAdmin() {
+        const on = isAdmin(), s = session();
+        $('gdAdminOn').style.display = on ? '' : 'none'; $('gdAdminOff').style.display = on ? 'none' : '';
+        $('gdWho').textContent = on ? `Đã đăng nhập · ${s.remaining < 0 ? 'mã không giới hạn lượt' : 'mã còn ' + s.remaining + ' lần đăng nhập'} · phiên đến ${new Date(s.exp).toLocaleTimeString('vi-VN', {hour: '2-digit', minute: '2-digit'})}` : '';
+    }
     window.gdLogin = async () => {
         if (!cfg().url) { const u = prompt('Dán URL Web App (kết thúc bằng /exec):', ''); if (!u) return; localStorage.setItem(GD.url, u.trim()); }
-        const k = prompt('Nhập API key quản trị:', ''); if (!k) return;
-        try { await call({action: 'auth', key: k.trim()}, false, 1); localStorage.setItem(GD.key, k.trim()); localStorage.setItem(GD.admin, '1'); status('Đã đăng nhập quản trị.'); }
-        catch (e) { status('Lỗi: ' + e.message); }
+        const code = prompt('Nhập mã đăng nhập quản trị (ví dụ GIOAN001):', ''); if (!code) return;
+        try {
+            const r = await call({action: 'login', code: code.trim(), ua: navigator.userAgent.slice(0, 150)}, true, 1);
+            localStorage.setItem(GD.key, r.token); localStorage.setItem(GD.sess, JSON.stringify({exp: r.expires, remaining: r.remaining}));
+            status(`Đã đăng nhập. ${r.remaining < 0 ? 'Mã không giới hạn lượt.' : `Mã còn ${r.remaining} lần đăng nhập.`}`);
+        } catch (e) { status('Lỗi: ' + e.message); }
         renderAdmin();
     };
-    window.gdLogout = () => { localStorage.removeItem(GD.key); localStorage.removeItem(GD.admin); renderAdmin(); status('Đã đăng xuất quản trị.'); };
+    window.gdLogout = () => { clearSession(); renderAdmin(); status('Đã đăng xuất.'); };
     const b64 = blob => new Promise((res, rej) => { const r = new FileReader(); r.onload = () => res(String(r.result).split(',')[1]); r.onerror = rej; r.readAsDataURL(blob); });
     const EXT = {'audio/mpeg': 'mp3', 'audio/mp3': 'mp3', 'audio/wav': 'wav', 'audio/x-wav': 'wav', 'audio/mp4': 'm4a', 'audio/x-m4a': 'm4a', 'audio/aac': 'aac', 'audio/ogg': 'ogg', 'audio/flac': 'flac'};
     // Đưa mọi file chọn từ máy lên Drive, đổi src sang drive:<id> để máy khác tải được.
@@ -3843,7 +3855,7 @@ body.sorting,body.sorting *{cursor:grabbing!important;user-select:none!important
     document.body.insertAdjacentHTML('beforeend', `<div id="gdModal" hidden><div class="gd-card"><h3>☁ Đồng bộ Google Drive</h3><div id="gdStatus"></div>
     <button onclick="gdSyncNow()">Đồng bộ ngay</button><ul id="gdList"></ul>
     <div id="gdAdminOff"><button onclick="gdLogin()">🔑 Đăng nhập quản trị</button></div>
-    <div id="gdAdminOn" style="display:none"><button onclick="gdPush()">Lưu kịch bản lên Drive</button><button onclick="gdUpload()">Tải nhạc lên Drive</button><button onclick="gdLogout()">Đăng xuất</button></div>
+    <div id="gdAdminOn" style="display:none"><div id="gdWho" class="gd-who"></div><button onclick="gdPush()">Lưu kịch bản lên Drive</button><button onclick="gdUpload()">Tải nhạc lên Drive</button><button onclick="gdLogout()">Đăng xuất</button></div>
     <button onclick="gdClose()">Đóng</button></div></div>`);
     const fab = document.createElement('button');
     fab.id = 'gdFab'; fab.textContent = '☁ Drive'; fab.onclick = window.gdOpen;
