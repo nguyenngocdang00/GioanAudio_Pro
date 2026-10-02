@@ -1,6 +1,6 @@
 {
-  "name": "StageAudio Pro",
-  "short_name": "StageAudio",
+  "name": "GioanAudio Pro",
+  "short_name": "GioanAudio",
   "start_url": "./index.html",
   "scope": "./",
   "display": "standalone",
