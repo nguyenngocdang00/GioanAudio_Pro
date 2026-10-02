@@ -1555,6 +1555,7 @@
 
 @media (max-width:767px){
  html,body{height:auto!important;min-height:100%}
+ html{scroll-padding-bottom:150px;scroll-padding-top:12px}
  body{display:block!important;overflow-y:auto!important;overflow-x:hidden!important;padding-bottom:calc(130px + env(safe-area-inset-bottom,0px))}
  main{display:block!important;overflow:visible!important}
  main>section{overflow:visible!important;border-right:0!important;border-bottom:1px solid #1e293b}
@@ -3411,7 +3412,8 @@
             return String(str ?? '').replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#039;");
         }
         function jsArg(value) {
-            return JSON.stringify(String(value ?? '')).replace(/</g, '\\u003c').replace(/>/g, '\\u003e').replace(/&/g, '\\u0026');
+            // Chuỗi JS nháy đơn, an toàn khi nằm trong thuộc tính HTML onclick="..." (không còn dấu " hay & thô)
+            return "'" + String(value ?? '').replace(/[\\'"<>&\r\n\u2028\u2029]/g, c => '\\u' + c.charCodeAt(0).toString(16).padStart(4, '0')) + "'";
         }
 
         document.getElementById('masterVolume').addEventListener('input', (e) => {
@@ -3519,6 +3521,19 @@
             saveLocalData();
             await cleanupUnusedAudioFiles();
             renderCueList();
+        }
+
+        async function deleteSfx(id) {
+            if (isLiveLocked) return showToast("Đang bật Live Lock Mode!", "error");
+            const sfx = soundboardSfx.find(x => x.id === id);
+            if (!sfx) return;
+            if (!confirm(`Xóa nút hiệu ứng "${sfx.name}"?`)) return;
+            try { stopSfx(id); } catch (e) {}
+            soundboardSfx = soundboardSfx.filter(x => x.id !== id);
+            saveLocalData();
+            await cleanupUnusedAudioFiles();
+            renderSoundboard();
+            showToast(`Đã xóa hiệu ứng: ${sfx.name}`, 'warning');
         }
 
         function editSfx(id) {
