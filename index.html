@@ -1553,6 +1553,7 @@
 .gd-card button{margin:3px;padding:8px 10px;border-radius:8px;background:#1e293b;border:1px solid #334155;color:#e2e8f0;font-weight:600}
 .gd-card li{list-style:none;padding:2px 0}.gd-card li.ok{color:#34d399}.gd-card li.no{color:#fb7185}
 .gd-who{color:#94a3b8;font-size:11px;margin:4px 3px}
+#gdStatus{white-space:pre-line;word-break:break-word}
 
 .drag-handle{display:inline-flex;align-items:center;justify-content:center;min-width:30px;height:30px;margin:-4px 2px -4px -8px;color:#64748b;cursor:grab;touch-action:none;user-select:none;-webkit-user-select:none;-webkit-touch-callout:none;border-radius:8px;flex:none}
 .drag-handle:hover{color:#a5b4fc;background:#1e293b}
@@ -1589,7 +1590,7 @@ body.sorting,body.sorting *{cursor:grabbing!important;user-select:none!important
             </div>
             <div>
                 <h1 class="font-extrabold text-lg tracking-tight text-white flex items-center gap-2">
-                    StageAudio Pro <span class="text-xs bg-indigo-950 text-indigo-400 border border-indigo-800/60 font-semibold px-2 py-0.5 rounded-full">v3.2 Drive</span>
+                    StageAudio Pro <span class="text-xs bg-indigo-950 text-indigo-400 border border-indigo-800/60 font-semibold px-2 py-0.5 rounded-full">v3.3 Drive</span>
                 </h1>
                 <div class="flex items-center gap-2">
                     <p class="text-xs text-slate-400">Điều khiển kịch bản & hiệu ứng âm thanh sân khấu</p>
@@ -3649,7 +3650,7 @@ body.sorting,body.sorting *{cursor:grabbing!important;user-select:none!important
     const GD = {url:'stage_audio_gas_url', key:'stage_audio_gas_token', admin:'stage_audio_admin2', sess:'stage_audio_session', files:'stage_audio_drive_files',
                 meta:'stage_audio_drive_meta', ver:'stage_audio_manifest_ver', snap:'stage_audio_snapshot', mig:'stage_audio_nodefaults'};
     const DEFAULTS = {"cues": {"cue_1": "01. Nhạc Mở Màn - Khai Mạc Chương Trình", "cue_2": "02. Nhạc Nền Giới Thiệu Đại Biểu", "cue_3": "03. Tiết Mục 1: Múa Hát Cánh Chim Tuổi Trẻ", "cue_4": "04. Nhạc Trao Giải & Tặng Hoa"}, "sfx": {"sfx_1": "Trả Lời ĐÚNG", "sfx_2": "Trả Lời SAI", "sfx_3": "RAPIQ / Kịch Tính", "sfx_4": "Tiếng Vỗ Tay", "sfx_5": "Tung Hô Trao Giải", "sfx_6": "Đếm Ngược 1s"}};
-    const CHUNK = 6 * 1024 * 1024, MAX_UPLOAD = 20 * 1024 * 1024, $ = id => document.getElementById(id), sleep = ms => new Promise(r => setTimeout(r, ms));
+    const CHUNK = 1024 * 1024, MIN_CHUNK = 128 * 1024, MAX_UPLOAD = 20 * 1024 * 1024, $ = id => document.getElementById(id), sleep = ms => new Promise(r => setTimeout(r, ms));
     const cfg = () => ({url: (window.STAGE_CONFIG && window.STAGE_CONFIG.gasUrl) || localStorage.getItem(GD.url) || '', key: localStorage.getItem(GD.key) || ''});
     // Dọn API key cũ (nếu từng lưu bởi bản trước) — từ giờ trình duyệt chỉ giữ phiên tạm thời
     localStorage.removeItem('stage_audio_gas_key'); localStorage.removeItem('stage_audio_admin');
@@ -3667,10 +3668,13 @@ body.sorting,body.sorting *{cursor:grabbing!important;user-select:none!important
     const TMO = (window.STAGE_CONFIG && window.STAGE_CONFIG.timeoutMs) || 60000;
     async function fetchT(url, opt) {
         const ac = new AbortController(), t = setTimeout(() => ac.abort(), TMO);
-        try { return await fetch(url, {...(opt || {}), signal: ac.signal}); } finally { clearTimeout(t); }
+        try { return await fetch(url, {...(opt || {}), signal: ac.signal, credentials: 'omit', cache: 'no-store'}); } finally { clearTimeout(t); }
     }
 
     // Đọc: công khai (không cần key). Ghi (POST): luôn cần key quản trị.
+    const netMsg = e => e && e.name === 'AbortError' ? `Apps Script phản hồi quá chậm (quá ${Math.round(TMO / 1000)} giây)`
+        : e instanceof TypeError ? 'Không kết nối được tới Apps Script (mất mạng, mạng/DNS chặn, hoặc phản hồi quá lớn bị ngắt)'
+        : e instanceof SyntaxError ? 'Apps Script trả về trang lỗi thay vì dữ liệu (kiểm tra triển khai Web App: quyền truy cập phải là "Bất kỳ ai")' : null;
     async function call(p, post, tries = 3) {
         const c = cfg();
         if (!c.url) throw new Error('Chưa cấu hình URL Apps Script (sửa file config.js)');
@@ -3678,8 +3682,11 @@ body.sorting,body.sorting *{cursor:grabbing!important;user-select:none!important
         for (let i = 0; i < tries; i++) {
             try {
                 const q = {token: c.key, ...p};
-                const r = post ? await fetchT(c.url, {method: 'POST', body: JSON.stringify(q)}) : await fetchT(c.url + '?' + new URLSearchParams(q));
-                const j = await r.json();
+                let j;
+                try {
+                    const r = post ? await fetchT(c.url, {method: 'POST', body: JSON.stringify(q)}) : await fetchT(c.url + '?' + new URLSearchParams(q));
+                    j = await r.json();
+                } catch (e0) { const en = new Error(netMsg(e0) || e0.message); en.net = true; en.offline = !(e0 instanceof SyntaxError); en.raw = e0; throw en; }
                 if (!j.ok) { const er = new Error(j.error || 'Lỗi máy chủ'); er.auth = j.code === 'AUTH'; er.noRetry = er.auth || j.code === 'LOGIN'; throw er; }
                 return j;
             } catch (e) { last = e; if (e.auth) { clearSession(); try { renderAdmin(); } catch (_) {} } if (e.noRetry) break; if (i < tries - 1) await sleep(800 * (i + 1)); }
@@ -3728,10 +3735,12 @@ body.sorting,body.sorting *{cursor:grabbing!important;user-select:none!important
             try {
                 if (await getAudioFileFromDB(src) && (!f || meta[id] === f.modified)) { ok++; continue; }
                 if (!f) throw new Error('không còn trên Drive');
-                const parts = []; let off = 0, total = Infinity, mime = 'audio/mpeg', mod = 0;
+                const parts = []; let off = 0, total = Infinity, mime = 'audio/mpeg', mod = 0, len = CHUNK, streak = 0, bad = 0;
                 while (off < total) {
-                    setFab(`☁ ${ok + 1}/${ids.length} · ${(off / 1048576).toFixed(0)}MB`); status(`Đang tải ${name}…`);
-                    const r = await call({action: 'file', id, offset: off, len: CHUNK});
+                    setFab(`☁ ${ok + 1}/${ids.length} · ${(off / 1048576).toFixed(1)}MB`); status(`Đang tải ${name}: ${(off / 1048576).toFixed(1)} / ${isFinite(total) ? (total / 1048576).toFixed(1) : '?'} MB`);
+                    let r;
+                    try { r = await call({action: 'file', id, offset: off, len}, false, 1); bad = 0; if (++streak >= 4 && len < CHUNK) { len = Math.min(CHUNK, len * 2); streak = 0; } }
+                    catch (e) { if (e.noRetry || ++bad > 6) throw e; len = Math.max(MIN_CHUNK, len >> 1); streak = 0; await sleep(400 * bad); continue; }
                     const bin = atob(r.data), u = new Uint8Array(bin.length);
                     for (let i = 0; i < bin.length; i++) u[i] = bin.charCodeAt(i);
                     if (!u.length) break;
@@ -3752,7 +3761,7 @@ body.sorting,body.sorting *{cursor:grabbing!important;user-select:none!important
     async function gdAuto(force) {
         if (busy && Date.now() - busySince < 180000) return;
         if (!cfg().url) { status('Chưa cấu hình URL Apps Script (sửa file config.js).'); setFab('☁ Drive ⚠'); return; }
-        busy = true; busySince = Date.now(); setFab('☁ Đang đồng bộ…'); let fail = 1;
+        busy = true; busySince = Date.now(); setFab('☁ Đang đồng bộ…'); let fail = 1, offline = false;
         try {
             const r = await call({action: 'list'});
             localStorage.setItem(GD.files, JSON.stringify(r.files)); fillPresets();
@@ -3765,9 +3774,9 @@ body.sorting,body.sorting *{cursor:grabbing!important;user-select:none!important
                 else { applyManifest(m, ver); status('Đã cập nhật kịch bản từ Drive.'); }
             }
             fail = await syncFiles(r.files);
-        } catch (e) { status('Lỗi: ' + e.message); }
+        } catch (e) { offline = !!e.offline; status(e.net ? (navigator.onLine || !e.offline ? e.message : 'Đang offline — app dùng dữ liệu đã tải về máy.') : 'Lỗi: ' + e.message); }
         try { const miss = await localOnlyMissing(); if (miss.length) { fail += miss.length; status(isAdmin() ? `${miss.length} mục dùng file chọn từ máy chưa lên Drive — bấm "Lưu kịch bản lên Drive".` : `${miss.length} mục dùng file chỉ có trên máy quản trị (chưa lên Drive). Báo quản trị bấm "Lưu kịch bản lên Drive".`); } } catch (e) {}
-        busy = false; setFab(fail ? '☁ Drive ⚠' : '☁ Drive ✓'); await list();
+        busy = false; setFab(offline ? '☁ Offline' : fail ? '☁ Drive ⚠' : '☁ Drive ✓'); await list();
     }
     window.gdSyncNow = () => gdAuto(true);
 
@@ -3849,11 +3858,27 @@ body.sorting,body.sorting *{cursor:grabbing!important;user-select:none!important
         };
         inp.click();
     };
+    window.gdDiag = async () => {
+        const c = cfg(), out = [];
+        out.push('Mạng: ' + (navigator.onLine ? 'online' : 'OFFLINE'));
+        out.push('URL: ' + (c.url ? c.url.replace(/(macros\/s\/.{6}).*(\/exec)/, '$1…$2') : 'CHƯA CẤU HÌNH (sửa config.js)'));
+        out.push('Trình duyệt: ' + navigator.userAgent.replace(/^Mozilla\/5\.0 /, '').slice(0, 70));
+        if (!c.url) return status(out.join('\n'));
+        const step = async (label, p) => {
+            status(out.join('\n') + '\nĐang thử: ' + label + '…'); const t0 = performance.now();
+            try { const r = await call(p, false, 1); out.push(`${label}: OK (${Math.round(performance.now() - t0)} ms)`); return r; }
+            catch (e) { out.push(`${label}: LỖI — ${e.message}`); return null; }
+        };
+        const l = await step('Danh sách file', {action: 'list'});
+        if (l && l.files.length) { const f = l.files[0]; await step('Tải thử 64 KB', {action: 'file', id: f.id, offset: 0, len: 65536}); await step('Tải thử 1 MB', {action: 'file', id: f.id, offset: 0, len: 1048576}); }
+        else if (l) out.push('Thư viện Drive đang trống.');
+        status(out.join('\n'));
+    };
     window.gdOpen = () => { $('gdModal').hidden = false; renderAdmin(); list(); };
     window.gdClose = () => { $('gdModal').hidden = true; };
 
     document.body.insertAdjacentHTML('beforeend', `<div id="gdModal" hidden><div class="gd-card"><h3>☁ Đồng bộ Google Drive</h3><div id="gdStatus"></div>
-    <button onclick="gdSyncNow()">Đồng bộ ngay</button><ul id="gdList"></ul>
+    <button onclick="gdSyncNow()">Đồng bộ ngay</button><button onclick="gdDiag()">🩺 Kiểm tra kết nối</button><ul id="gdList"></ul>
     <div id="gdAdminOff"><button onclick="gdLogin()">🔑 Đăng nhập quản trị</button></div>
     <div id="gdAdminOn" style="display:none"><div id="gdWho" class="gd-who"></div><button onclick="gdPush()">Lưu kịch bản lên Drive</button><button onclick="gdUpload()">Tải nhạc lên Drive</button><button onclick="gdLogout()">Đăng xuất</button></div>
     <button onclick="gdClose()">Đóng</button></div></div>`);
