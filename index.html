@@ -1552,8 +1552,27 @@
 .gd-card h3{font-weight:800;margin-bottom:6px}#gdStatus{min-height:18px;color:#a5b4fc;margin:6px 0}
 .gd-card button{margin:3px;padding:8px 10px;border-radius:8px;background:#1e293b;border:1px solid #334155;color:#e2e8f0;font-weight:600}
 .gd-card li{list-style:none;padding:2px 0}.gd-card li.ok{color:#34d399}.gd-card li.no{color:#fb7185}
-.gd-who{color:#94a3b8;font-size:11px;margin:4px 3px}
+.gd-who{color:#94a3b8;font-size:11px;margin:4px 3px;white-space:pre-line}
 #gdStatus{white-space:pre-line;word-break:break-word}
+
+.fx-fab{padding:6px 12px;border-radius:8px;background:#7c3aed;color:#fff;font:700 12px system-ui;border:0;white-space:nowrap;cursor:pointer}.fx-fab:hover{background:#8b5cf6}
+#fxModal{position:fixed;inset:0;z-index:62;background:#000b;display:flex;align-items:center;justify-content:center;padding:12px}#fxModal[hidden]{display:none}
+.fx-card{background:#0b1220;border:1px solid #334155;border-radius:16px;width:min(1260px,100%);max-height:94vh;overflow:auto;padding:14px 16px;color:#e2e8f0;font:13px system-ui}
+.fx-top{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:8px}.fx-top h3{font-weight:800;font-size:15px;margin-right:6px}
+.fx-tab,.fx-btn{padding:6px 14px;border-radius:999px;background:#1e293b;border:1px solid #334155;color:#cbd5e1;font-weight:700;cursor:pointer}.fx-btn{padding:4px 10px;border-radius:8px;font-size:12px}
+.fx-tab.on,.fx-btn.on{background:#4f46e5;border-color:#6366f1;color:#fff}
+.fx-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(330px,1fr));gap:10px}.fx-wide{grid-column:1/-1}
+.fx-mod{background:#111a2e;border:1px solid #243049;border-radius:12px;padding:10px 12px}
+.fx-mod h4{font-weight:800;color:#a5b4fc;margin-bottom:6px;display:flex;justify-content:space-between;align-items:center;gap:8px}
+.fx-row{display:grid;grid-template-columns:78px 1fr 72px;gap:8px;align-items:center;margin:3px 0}.fx-row input[type=range],.fx-eqrow input[type=range]{width:100%;accent-color:#818cf8}
+.fx-eqrow{display:grid;grid-template-columns:34px 1fr 66px 64px 50px;gap:6px;align-items:center;margin:3px 0}.fx-sub{color:#94a3b8;font-weight:700;margin-top:6px}
+.fx-v{color:#94a3b8;font:11px ui-monospace,monospace;text-align:right}
+.fx-num{background:#0b1220;border:1px solid #334155;border-radius:6px;color:#e2e8f0;padding:2px 4px;font-size:11px;width:100%}
+.fx-gr{height:8px;background:#0b1220;border-radius:4px;overflow:hidden;margin-top:6px}.fx-gr i{display:block;height:100%;width:0;background:#f59e0b}
+.fx-tog{display:inline-flex;align-items:center;gap:4px;font-size:11px;font-weight:700;color:#cbd5e1;cursor:pointer}
+.fx-cells{display:flex;flex-wrap:wrap;gap:10px;margin:4px 0 8px}.fx-cell{background:#0b1220;border:1px solid #243049;border-radius:10px;padding:6px 14px;min-width:120px;text-align:center}.fx-cell b{display:block;font:700 20px ui-monospace,monospace}.fx-cell small{color:#64748b}
+canvas.fx-cv{width:100%;border-radius:8px;background:#0b1220;border:1px solid #243049;display:block;margin-top:6px}
+@media (max-width:767px){#fxFab,#fxModal{display:none!important}}
 
 .drag-handle{display:inline-flex;align-items:center;justify-content:center;min-width:30px;height:30px;margin:-4px 2px -4px -8px;color:#64748b;cursor:grab;touch-action:none;user-select:none;-webkit-user-select:none;-webkit-touch-callout:none;border-radius:8px;flex:none}
 .drag-handle:hover{color:#a5b4fc;background:#1e293b}
@@ -1590,7 +1609,7 @@ body.sorting,body.sorting *{cursor:grabbing!important;user-select:none!important
             </div>
             <div>
                 <h1 class="font-extrabold text-lg tracking-tight text-white flex items-center gap-2">
-                    StageAudio Pro <span class="text-xs bg-indigo-950 text-indigo-400 border border-indigo-800/60 font-semibold px-2 py-0.5 rounded-full">v3.3 Drive</span>
+                    GioanAudio Pro <span class="text-xs bg-indigo-950 text-indigo-400 border border-indigo-800/60 font-semibold px-2 py-0.5 rounded-full">v3.4 Drive</span>
                 </h1>
                 <div class="flex items-center gap-2">
                     <p class="text-xs text-slate-400">Điều khiển kịch bản & hiệu ứng âm thanh sân khấu</p>
@@ -1967,96 +1986,141 @@ body.sorting,body.sorting *{cursor:grabbing!important;user-select:none!important
            ========================================================================== */
         const IDB_NAME = 'StageAudioDB';
         const IDB_STORE = 'audioFiles';
+        // Lớp lưu nhạc có dự phòng: nếu IndexedDB của trình duyệt hỏng (vd. "Internal error opening backing store"
+        // sau khi xóa cache) thì chuyển sang Cache API; nếu cũng không được thì giữ tạm trong bộ nhớ của phiên.
+        const AudioStore = {mode: 'idb', idbOK: false, reason: ''};
+        const AUDIO_MEM = new Map(), AUDIO_CACHE = 'stageaudio-audio-v1';
+        const audioKeyReq = k => new Request(location.origin + '/__stage_audio__/' + encodeURIComponent(k));
+        let idbDbPromise = null, degradePromise = null;
 
         function openAudioDB() {
-            return new Promise((resolve, reject) => {
-                const request = indexedDB.open(IDB_NAME, 1);
-                request.onupgradeneeded = (e) => {
-                    const db = e.target.result;
-                    if (!db.objectStoreNames.contains(IDB_STORE)) {
-                        db.createObjectStore(IDB_STORE);
-                    }
-                };
-                request.onsuccess = () => resolve(request.result);
-                request.onerror = () => reject(request.error);
-            });
-        }
-
-        async function saveAudioFileToDB(id, fileOrBlob) {
-            try {
-                const db = await openAudioDB();
-                return new Promise((resolve, reject) => {
-                    const tx = db.transaction(IDB_STORE, 'readwrite');
-                    const store = tx.objectStore(IDB_STORE);
-                    const req = store.put(fileOrBlob, id);
-                    req.onsuccess = () => resolve();
-                    req.onerror = () => reject(req.error);
-                });
-            } catch (err) {
-                console.warn('Không thể lưu file vào IndexedDB:', err);
+            if (!idbDbPromise) {
+                idbDbPromise = new Promise((resolve, reject) => {
+                    let request;
+                    try { request = indexedDB.open(IDB_NAME, 1); } catch (e) { return reject(e); }
+                    request.onupgradeneeded = (e) => {
+                        const db = e.target.result;
+                        if (!db.objectStoreNames.contains(IDB_STORE)) db.createObjectStore(IDB_STORE);
+                    };
+                    request.onsuccess = () => {
+                        const db = request.result;
+                        db.onversionchange = () => { db.close(); idbDbPromise = null; };
+                        db.onclose = () => { idbDbPromise = null; };
+                        resolve(db);
+                    };
+                    request.onerror = () => reject(request.error || new Error('IndexedDB lỗi'));
+                    request.onblocked = () => reject(new Error('IndexedDB bị chặn bởi tab khác'));
+                }).catch(e => { idbDbPromise = null; throw e; });
             }
+            return idbDbPromise;
+        }
+        function notifyAudioStore() { try { if (window.onAudioStoreChange) window.onAudioStoreChange(); } catch (e) {} }
+        function degradeAudioStore(err) {
+            if (AudioStore.mode !== 'idb') return Promise.resolve();
+            if (!degradePromise) degradePromise = (async () => {
+                AudioStore.reason = String(err && (err.name ? err.name + ': ' + err.message : err));
+                try { if (window.caches) { const c = await caches.open(AUDIO_CACHE); await c.match(audioKeyReq('__probe__')); AudioStore.mode = 'cache'; } else AudioStore.mode = 'memory'; }
+                catch (e) { AudioStore.mode = 'memory'; }
+                console.warn('Bộ nhớ nhạc chuyển sang chế độ "' + AudioStore.mode + '" — lý do:', AudioStore.reason);
+                notifyAudioStore();
+            })().finally(() => { degradePromise = null; });
+            return degradePromise;
+        }
+        const AUDIO_LAYER = {
+            idb: {
+                async save(id, blob) {
+                    const db = await openAudioDB();
+                    await new Promise((res, rej) => { const tx = db.transaction(IDB_STORE, 'readwrite'); tx.objectStore(IDB_STORE).put(blob, id); tx.oncomplete = res; tx.onerror = () => rej(tx.error); tx.onabort = () => rej(tx.error || new Error('giao dịch bị hủy')); });
+                    AudioStore.idbOK = true;
+                },
+                async get(id) {
+                    const db = await openAudioDB(); AudioStore.idbOK = true;
+                    return await new Promise(res => { const r = db.transaction(IDB_STORE, 'readonly').objectStore(IDB_STORE).get(id); r.onsuccess = () => res(r.result || null); r.onerror = () => res(null); });
+                },
+                async del(id) { const db = await openAudioDB(); await new Promise(res => { const tx = db.transaction(IDB_STORE, 'readwrite'); tx.objectStore(IDB_STORE).delete(id); tx.oncomplete = tx.onerror = tx.onabort = () => res(); }); },
+                async keys() { const db = await openAudioDB(); return await new Promise((res, rej) => { const r = db.transaction(IDB_STORE, 'readonly').objectStore(IDB_STORE).getAllKeys(); r.onsuccess = () => res(r.result); r.onerror = () => rej(r.error); }); }
+            },
+            cache: {
+                async save(id, blob) { const c = await caches.open(AUDIO_CACHE); await c.put(audioKeyReq(id), new Response(blob, {headers: {'content-type': blob.type || 'application/octet-stream'}})); },
+                async get(id) { const c = await caches.open(AUDIO_CACHE), r = await c.match(audioKeyReq(id)); return r ? await r.blob() : null; },
+                async del(id) { const c = await caches.open(AUDIO_CACHE); await c.delete(audioKeyReq(id)); },
+                async keys() { const c = await caches.open(AUDIO_CACHE); return (await c.keys()).map(r => decodeURIComponent(new URL(r.url).pathname.split('/__stage_audio__/')[1] || '')).filter(Boolean); }
+            },
+            memory: {
+                async save(id, blob) { AUDIO_MEM.set(id, blob); },
+                async get(id) { return AUDIO_MEM.get(id) || null; },
+                async del(id) { AUDIO_MEM.delete(id); },
+                async keys() { return [...AUDIO_MEM.keys()]; }
+            }
+        };
+        const audioLayers = () => [...new Set([AudioStore.mode, ...(AudioStore.idbOK ? ['idb'] : []), 'memory'])];
+
+        // Trả về chế độ đã dùng để lưu ('idb' | 'cache' | 'memory'), hoặc null nếu thất bại
+        async function saveAudioFileToDB(id, fileOrBlob) {
+            for (let guard = 0; guard < 4; guard++) {
+                const mode = AudioStore.mode;
+                try { await AUDIO_LAYER[mode].save(id, fileOrBlob); return mode; }
+                catch (err) {
+                    console.warn('Không thể lưu file vào ' + mode + ':', err);
+                    if (mode === 'idb') await degradeAudioStore(err);
+                    else if (mode === 'cache') { AudioStore.mode = 'memory'; AudioStore.reason = String(err); notifyAudioStore(); }
+                    else return null;
+                }
+            }
+            return null;
         }
 
         async function getAudioFileFromDB(id) {
-            try {
-                const db = await openAudioDB();
-                return new Promise((resolve) => {
-                    const tx = db.transaction(IDB_STORE, 'readonly');
-                    const store = tx.objectStore(IDB_STORE);
-                    const req = store.get(id);
-                    req.onsuccess = () => resolve(req.result);
-                    req.onerror = () => resolve(null);
-                });
-            } catch (err) {
-                return null;
+            for (let pass = 0; pass < 2; pass++) {
+                const before = AudioStore.mode;
+                for (const m of audioLayers()) {
+                    try { const v = await AUDIO_LAYER[m].get(id); if (v) return v; }
+                    catch (err) { if (m === 'idb' && AudioStore.mode === 'idb') await degradeAudioStore(err); }
+                }
+                if (AudioStore.mode === before) break;   // vừa chuyển sang bộ nhớ dự phòng -> tìm lại ở đó
             }
+            return null;
         }
+
+        async function deleteAudioKey(id) { for (const m of audioLayers()) { try { await AUDIO_LAYER[m].del(id); } catch (e) {} } }
 
         async function deleteAudioFileFromDB(id) {
             if (!id || !id.startsWith('idb_')) return;
-            try {
-                const db = await openAudioDB();
-                await new Promise((resolve, reject) => {
-                    const tx = db.transaction(IDB_STORE, 'readwrite');
-                    tx.objectStore(IDB_STORE).delete(id);
-                    tx.oncomplete = resolve;
-                    tx.onerror = () => reject(tx.error);
-                });
-            } catch (err) { console.warn('Không thể xóa file IndexedDB:', err); }
-        }
-
-        async function getAllAudioFilesFromDB() {
-            try {
-                const db = await openAudioDB();
-                return await new Promise((resolve, reject) => {
-                    const tx = db.transaction(IDB_STORE, 'readonly');
-                    const store = tx.objectStore(IDB_STORE);
-                    const req = store.getAllKeys();
-                    req.onsuccess = async () => {
-                        const out = [];
-                        for (const key of req.result) {
-                            const blob = await new Promise(r => {
-                                const r2 = store.get(key);
-                                r2.onsuccess = () => r(r2.result);
-                                r2.onerror = () => r(null);
-                            });
-                            if (blob) out.push({id:key, blob});
-                        }
-                        resolve(out);
-                    };
-                    req.onerror = () => reject(req.error);
-                });
-            } catch (err) { return []; }
+            await deleteAudioKey(id);
         }
 
         async function getAllAudioKeysFromDB() {
+            const set = new Set();
+            for (let pass = 0; pass < 2; pass++) {
+                const before = AudioStore.mode;
+                for (const m of audioLayers()) {
+                    try { (await AUDIO_LAYER[m].keys()).forEach(k => set.add(k)); }
+                    catch (e) { if (m === 'idb' && AudioStore.mode === 'idb') await degradeAudioStore(e); }
+                }
+                if (AudioStore.mode === before) break;
+            }
+            return [...set];
+        }
+
+        async function getAllAudioFilesFromDB() {
+            const out = [];
+            for (const k of await getAllAudioKeysFromDB()) { const blob = await getAudioFileFromDB(k); if (blob) out.push({id: k, blob}); }
+            return out;
+        }
+
+        // Sửa lỗi bộ nhớ: xóa cơ sở dữ liệu IndexedDB hỏng + Cache dự phòng rồi thử mở lại
+        async function repairAudioStore() {
+            const log = [];
+            try { if (idbDbPromise) { const db = await idbDbPromise.catch(() => null); if (db) db.close(); } } catch (e) {}
+            idbDbPromise = null;
             try {
-                const db = await openAudioDB();
-                return await new Promise((res, rej) => {
-                    const r = db.transaction(IDB_STORE, 'readonly').objectStore(IDB_STORE).getAllKeys();
-                    r.onsuccess = () => res(r.result); r.onerror = () => rej(r.error);
-                });
-            } catch (e) { return []; }
+                await new Promise((res, rej) => { const r = indexedDB.deleteDatabase(IDB_NAME); r.onsuccess = () => res(); r.onerror = () => rej(r.error || new Error('lỗi')); r.onblocked = () => rej(new Error('đang bị tab khác giữ — hãy đóng các tab khác của trang này')); setTimeout(() => rej(new Error('quá thời gian')), 8000); });
+                log.push('đã xóa cơ sở dữ liệu IndexedDB cũ');
+            } catch (e) { log.push('không xóa được IndexedDB (' + (e.message || e) + ')'); }
+            try { if (window.caches) { await caches.delete(AUDIO_CACHE); log.push('đã làm sạch bộ nhớ dự phòng'); } } catch (e) {}
+            AudioStore.mode = 'idb'; AudioStore.reason = ''; AudioStore.idbOK = false;
+            try { await openAudioDB(); AudioStore.idbOK = true; log.push('IndexedDB đã mở lại bình thường'); notifyAudioStore(); return {ok: true, log}; }
+            catch (e) { await degradeAudioStore(e); log.push('IndexedDB vẫn lỗi: ' + (e.name || '') + ' ' + (e.message || '')); return {ok: false, log}; }
         }
 
         function blobToDataURL(blob) {
@@ -2116,6 +2180,7 @@ body.sorting,body.sorting *{cursor:grabbing!important;user-select:none!important
                 limiterNode.release.value = 0.12;
                 masterGainNode.connect(limiterNode);
                 limiterNode.connect(audioCtx.destination);
+                if (window.StageFX) StageFX.install(audioCtx, masterGainNode, limiterNode);
                 updateMasterGain();
             }
             if (audioCtx.state === 'suspended') audioCtx.resume();
@@ -2127,6 +2192,11 @@ body.sorting,body.sorting *{cursor:grabbing!important;user-select:none!important
             return masterGainNode;
         }
 
+        function getBusInput(bus) {
+            getAudioContext();
+            return (window.StageFX && StageFX.active && StageFX.bus && StageFX.bus[bus]) || masterGainNode;
+        }
+
         function updateMasterGain() {
             if (masterGainNode) {
                 const el = document.getElementById('masterVolume');
@@ -2134,13 +2204,13 @@ body.sorting,body.sorting *{cursor:grabbing!important;user-select:none!important
             }
         }
 
-        function connectHtmlAudioToMaster(audio, trackVolume = 1) {
+        function connectHtmlAudioToMaster(audio, trackVolume = 1, bus = 'music') {
             const ctx = getAudioContext();
             let source = mediaSourceNodes.get(audio);
             if (!source) {
                 source = ctx.createMediaElementSource(audio);
                 mediaSourceNodes.set(audio, source);
-                source.connect(getMasterGain());
+                if (window.StageFX && StageFX.active) StageFX.route(source, bus, audio); else source.connect(getMasterGain());
             }
             audio.volume = Math.max(0, Math.min(1, Number(trackVolume) || 0));
             return source;
@@ -2171,7 +2241,7 @@ body.sorting,body.sorting *{cursor:grabbing!important;user-select:none!important
             }
         }
 
-        function playSyntheticSound(type) {
+        function playSyntheticSound(type, bus = 'music') {
             const ctx = getAudioContext();
             const now = ctx.currentTime;
             const nodes = [];
@@ -2187,7 +2257,7 @@ body.sorting,body.sorting *{cursor:grabbing!important;user-select:none!important
                     gain.gain.setValueAtTime(0.3, now + idx * 0.08);
                     gain.gain.exponentialRampToValueAtTime(0.001, now + idx * 0.08 + 0.3);
                     osc.connect(gain);
-                    gain.connect(getMasterGain());
+                    gain.connect(getBusInput(bus));
                     osc.start(now + idx * 0.08);
                     osc.stop(now + idx * 0.08 + 0.3);
                     nodes.push(osc);
@@ -2203,7 +2273,7 @@ body.sorting,body.sorting *{cursor:grabbing!important;user-select:none!important
                 gain.gain.setValueAtTime(0.4, now);
                 gain.gain.exponentialRampToValueAtTime(0.01, now + 0.45);
                 osc.connect(gain);
-                gain.connect(getMasterGain());
+                gain.connect(getBusInput(bus));
                 osc.start(now);
                 osc.stop(now + 0.45);
                 nodes.push(osc);
@@ -2218,7 +2288,7 @@ body.sorting,body.sorting *{cursor:grabbing!important;user-select:none!important
                     gain.gain.setValueAtTime(0.5, now + i * 0.35);
                     gain.gain.exponentialRampToValueAtTime(0.001, now + i * 0.35 + 0.2);
                     osc.connect(gain);
-                    gain.connect(getMasterGain());
+                    gain.connect(getBusInput(bus));
                     osc.start(now + i * 0.35);
                     osc.stop(now + i * 0.35 + 0.25);
                     nodes.push(osc);
@@ -2235,7 +2305,7 @@ body.sorting,body.sorting *{cursor:grabbing!important;user-select:none!important
                     gain.gain.setValueAtTime(0.2, now);
                     gain.gain.exponentialRampToValueAtTime(0.001, now + 1.2);
                     osc.connect(gain);
-                    gain.connect(getMasterGain());
+                    gain.connect(getBusInput(bus));
                     osc.start(now);
                     osc.stop(now + 1.2);
                     nodes.push(osc);
@@ -2259,7 +2329,7 @@ body.sorting,body.sorting *{cursor:grabbing!important;user-select:none!important
                 gain.gain.exponentialRampToValueAtTime(0.01, now + 1.5);
                 noise.connect(filter);
                 filter.connect(gain);
-                gain.connect(getMasterGain());
+                gain.connect(getBusInput(bus));
                 noise.start(now);
                 nodes.push(noise);
             }
@@ -2272,7 +2342,7 @@ body.sorting,body.sorting *{cursor:grabbing!important;user-select:none!important
                 gain.gain.setValueAtTime(0.3, now);
                 gain.gain.exponentialRampToValueAtTime(0.001, now + 0.1);
                 osc.connect(gain);
-                gain.connect(getMasterGain());
+                gain.connect(getBusInput(bus));
                 osc.start(now);
                 osc.stop(now + 0.1);
                 nodes.push(osc);
@@ -2286,7 +2356,7 @@ body.sorting,body.sorting *{cursor:grabbing!important;user-select:none!important
                 gain.gain.setValueAtTime(0.2, now);
                 gain.gain.exponentialRampToValueAtTime(0.001, now + 2.0);
                 osc.connect(gain);
-                gain.connect(getMasterGain());
+                gain.connect(getBusInput(bus));
                 osc.start(now);
                 osc.stop(now + 2.0);
                 nodes.push(osc);
@@ -2414,6 +2484,12 @@ body.sorting,body.sorting *{cursor:grabbing!important;user-select:none!important
             }
         }
 
+        function normAutomation(a) {
+            if (!a || !Array.isArray(a.pts)) return undefined;
+            const pts = a.pts.map(p => [Math.max(0, Number(p && p[0]) || 0), Math.max(-30, Math.min(6, Number(p && p[1]) || 0))]).sort((x, y) => x[0] - y[0]);
+            return pts.length ? {on: !!a.on, pts} : undefined;
+        }
+
         function normalizeImportedCue(item, index) {
             if (!item || typeof item !== 'object') throw new Error(`Tiết mục #${index + 1} không hợp lệ`);
             const id = String(item.id || `cue_${Date.now()}_${index}`);
@@ -2427,7 +2503,8 @@ body.sorting,body.sorting *{cursor:grabbing!important;user-select:none!important
                 hotCues: Array.isArray(item.hotCues) ? item.hotCues.map(h => ({
                     label: String(h?.label || 'Hot Cue'),
                     time: Math.max(0, Number(h?.time) || 0)
-                })).filter(h => Number.isFinite(h.time)) : []
+                })).filter(h => Number.isFinite(h.time)) : [],
+                automation: normAutomation(item.automation)
             };
         }
 
@@ -3216,7 +3293,7 @@ body.sorting,body.sorting *{cursor:grabbing!important;user-select:none!important
             source.buffer = buffer;
             gain.gain.value = 1;
             source.connect(gain);
-            gain.connect(getMasterGain());
+            gain.connect(getBusInput('sfx'));
             activeSfxInstances[id] = { type:'buffer', source, gain };
             source.onended = () => {
                 if (activeSfxInstances[id]?.source === source) {
@@ -3233,7 +3310,7 @@ body.sorting,body.sorting *{cursor:grabbing!important;user-select:none!important
             if (activeSfxInstances[id]) { stopSfx(id); return; }
 
             if (sfx.src.startsWith('synth_')) {
-                const synthRes = playSyntheticSound(sfx.src);
+                const synthRes = playSyntheticSound(sfx.src, 'sfx');
                 activeSfxInstances[id] = { type:'synth', nodes:synthRes.nodes };
                 setTimeout(() => { if (activeSfxInstances[id]) { delete activeSfxInstances[id]; renderSoundboard(); } }, getSynthDurationMs(sfx.src)+50);
             } else {
@@ -3249,7 +3326,7 @@ body.sorting,body.sorting *{cursor:grabbing!important;user-select:none!important
                     const audio = new Audio(audioUrl);
                     audio.preload = 'auto';
                     activeSfxInstances[id] = { type:'audio', audio };
-                    connectHtmlAudioToMaster(audio, 1);
+                    connectHtmlAudioToMaster(audio, 1, 'sfx');
                     audio.addEventListener('ended', () => { delete activeSfxInstances[id]; renderSoundboard(); });
                     audio.play().catch(console.error);
                 }
@@ -3693,10 +3770,7 @@ body.sorting,body.sorting *{cursor:grabbing!important;user-select:none!important
         }
         throw last;
     }
-    async function delKey(k) {
-        const db = await openAudioDB();
-        await new Promise(res => { const t = db.transaction(IDB_STORE, 'readwrite'); t.objectStore(IDB_STORE).delete(k); t.oncomplete = t.onerror = t.onabort = () => res(); });
-    }
+    const delKey = k => deleteAudioKey(k);
     function fillPresets() {
         ['trackPresetSelect', 'sfxPresetSelect'].forEach(id => {
             const sel = $(id); if (!sel) return;
@@ -3747,8 +3821,8 @@ body.sorting,body.sorting *{cursor:grabbing!important;user-select:none!important
                     parts.push(u); off += u.length; total = r.total; mod = r.modified;
                     if (/^(audio|video)\//.test(r.mime || '')) mime = r.mime;
                 }
-                await saveAudioFileToDB(src, new Blob(parts, {type: mime}));
-                if (!await getAudioFileFromDB(src)) throw new Error('đầy bộ nhớ máy?');
+                const sm = await saveAudioFileToDB(src, new Blob(parts, {type: mime}));
+                if (!sm || !await getAudioFileFromDB(src)) throw new Error('không lưu được vào bộ nhớ trình duyệt (xem mục "Bộ nhớ nhạc" trong bảng này)');
                 meta[id] = mod; localStorage.setItem(GD.meta, JSON.stringify(meta)); ok++;
             } catch (e) { fail++; status(`Lỗi tải ${name}: ${e.message}`); }
         }
@@ -3776,7 +3850,7 @@ body.sorting,body.sorting *{cursor:grabbing!important;user-select:none!important
             fail = await syncFiles(r.files);
         } catch (e) { offline = !!e.offline; status(e.net ? (navigator.onLine || !e.offline ? e.message : 'Đang offline — app dùng dữ liệu đã tải về máy.') : 'Lỗi: ' + e.message); }
         try { const miss = await localOnlyMissing(); if (miss.length) { fail += miss.length; status(isAdmin() ? `${miss.length} mục dùng file chọn từ máy chưa lên Drive — bấm "Lưu kịch bản lên Drive".` : `${miss.length} mục dùng file chỉ có trên máy quản trị (chưa lên Drive). Báo quản trị bấm "Lưu kịch bản lên Drive".`); } } catch (e) {}
-        busy = false; setFab(offline ? '☁ Offline' : fail ? '☁ Drive ⚠' : '☁ Drive ✓'); await list();
+        busy = false; setFab(offline ? '☁ Offline' : (fail || AudioStore.mode === 'memory') ? '☁ Drive ⚠' : '☁ Drive ✓'); await list(); renderStore();
     }
     window.gdSyncNow = () => gdAuto(true);
 
@@ -3862,6 +3936,7 @@ body.sorting,body.sorting *{cursor:grabbing!important;user-select:none!important
         const c = cfg(), out = [];
         out.push('Mạng: ' + (navigator.onLine ? 'online' : 'OFFLINE'));
         out.push('URL: ' + (c.url ? c.url.replace(/(macros\/s\/.{6}).*(\/exec)/, '$1…$2') : 'CHƯA CẤU HÌNH (sửa config.js)'));
+        out.push('Bộ nhớ nhạc: ' + ({idb: 'IndexedDB ✓', cache: 'Cache API (IndexedDB lỗi)', memory: 'CHỈ TRONG PHIÊN (lỗi)'})[AudioStore.mode]);
         out.push('Trình duyệt: ' + navigator.userAgent.replace(/^Mozilla\/5\.0 /, '').slice(0, 70));
         if (!c.url) return status(out.join('\n'));
         const step = async (label, p) => {
@@ -3874,11 +3949,25 @@ body.sorting,body.sorting *{cursor:grabbing!important;user-select:none!important
         else if (l) out.push('Thư viện Drive đang trống.');
         status(out.join('\n'));
     };
-    window.gdOpen = () => { $('gdModal').hidden = false; renderAdmin(); list(); };
+    const STORE_HELP = '\nCách xử lý: (1) đóng HẾT các tab/cửa sổ trình duyệt rồi mở lại; (2) bấm 🛠 Sửa lỗi bộ nhớ; (3) Chrome: chrome://settings/siteData → tìm "github.io" → xóa → mở lại trang; (4) kiểm tra ổ đĩa còn trống và không dùng cửa sổ ẩn danh.';
+    function renderStore() {
+        const e = $('gdStore'); if (!e) return; const m = AudioStore.mode;
+        e.style.color = m === 'idb' ? '#34d399' : '#fbbf24';
+        e.textContent = m === 'idb' ? 'Bộ nhớ nhạc: IndexedDB ✓'
+            : m === 'cache' ? '⚠ IndexedDB của trình duyệt đang lỗi (' + AudioStore.reason.slice(0, 90) + '). Đang dùng bộ nhớ dự phòng (Cache API): nhạc vẫn lưu và phát offline được.' + STORE_HELP
+            : '⚠ Trình duyệt không cho lưu nhạc (' + AudioStore.reason.slice(0, 90) + '). Nhạc chỉ giữ TẠM trong phiên này: tải lại trang là mất và KHÔNG phát offline được.' + STORE_HELP;
+    }
+    window.onAudioStoreChange = () => { renderStore(); if (AudioStore.mode !== 'idb') { try { showToast(AudioStore.mode === 'cache' ? 'IndexedDB lỗi — đang dùng bộ nhớ dự phòng. Mở ☁ Drive để xem cách xử lý.' : 'Trình duyệt không cho lưu nhạc — chỉ lưu tạm trong phiên này.', 'warning'); } catch (e) {} } };
+    window.gdRepair = async () => {
+        status('Đang sửa lỗi bộ nhớ…'); const r = await repairAudioStore(); renderStore();
+        status((r.ok ? 'Đã sửa xong: ' : 'Chưa sửa được: ') + r.log.join('; ') + (r.ok ? '. Đang tải lại nhạc…' : '.'));
+        if (r.ok) await gdAuto(true);
+    };
+    window.gdOpen = () => { $('gdModal').hidden = false; renderAdmin(); renderStore(); list(); };
     window.gdClose = () => { $('gdModal').hidden = true; };
 
     document.body.insertAdjacentHTML('beforeend', `<div id="gdModal" hidden><div class="gd-card"><h3>☁ Đồng bộ Google Drive</h3><div id="gdStatus"></div>
-    <button onclick="gdSyncNow()">Đồng bộ ngay</button><button onclick="gdDiag()">🩺 Kiểm tra kết nối</button><ul id="gdList"></ul>
+    <button onclick="gdSyncNow()">Đồng bộ ngay</button><button onclick="gdDiag()">🩺 Kiểm tra kết nối</button><button onclick="gdRepair()">🛠 Sửa lỗi bộ nhớ</button><div id="gdStore" class="gd-who"></div><ul id="gdList"></ul>
     <div id="gdAdminOff"><button onclick="gdLogin()">🔑 Đăng nhập quản trị</button></div>
     <div id="gdAdminOn" style="display:none"><div id="gdWho" class="gd-who"></div><button onclick="gdPush()">Lưu kịch bản lên Drive</button><button onclick="gdUpload()">Tải nhạc lên Drive</button><button onclick="gdLogout()">Đăng xuất</button></div>
     <button onclick="gdClose()">Đóng</button></div></div>`);
@@ -3981,6 +4070,454 @@ body.sorting,body.sorting *{cursor:grabbing!important;user-select:none!important
     document.addEventListener('click', e => { if (Date.now() < noClickUntil) { e.stopPropagation(); e.preventDefault(); } }, true);
     document.addEventListener('contextmenu', e => { if (e.target.closest && e.target.closest('.drag-handle')) e.preventDefault(); });
 })();
+</script>
+<script>
+/* ===== StageFX: xử lý âm thanh Basic | Advanced | Pro (chỉ màn hình lớn) ===== */
+(function () {
+'use strict';
+const LS = 'stage_audio_fx_v1', TIERS = ['basic', 'adv', 'pro'];
+const BANDS = [['lowshelf', 60, 0.7, 'Bass'], ['peaking', 170, 1, ''], ['peaking', 400, 1, ''], ['peaking', 1000, 1, 'Mid'], ['peaking', 2400, 1, ''], ['peaking', 5000, 1, ''], ['peaking', 9000, 1, ''], ['highshelf', 12000, 0.7, 'Treble']];
+const TIER_BANDS = {basic: [0, 3, 7], adv: [0, 1, 3, 5, 7], pro: [0, 1, 2, 3, 4, 5, 6, 7]};
+const clone = o => JSON.parse(JSON.stringify(o)), db2g = d => Math.pow(10, d / 20), QDB = -3.0103;   // Q tuyến tính 0.7071 tính bằng dB (lowpass/highpass của Web Audio dùng dB)
+function defaults() { return {
+  pan: 0, eq: BANDS.map(b => ({f: b[1], g: 0, q: b[2]})),
+  comp: {on: false, thr: -24, ratio: 3, att: 10, rel: 250, knee: 12, mk: 0},
+  mb: {on: false, x1: 200, x2: 2500, b: [0, 1, 2].map(() => ({thr: -26, ratio: 3, mk: 0}))},
+  lim: {on: true, ceil: -1, rel: 100},
+  delay: {on: false, time: 350, fb: 0.35, mix: 0.25, tone: 6000},
+  rev: {on: true, mix: 0, size: 1.6, damp: 9000, pre: 20},
+  duck: {on: false, amount: -10, thr: -40, ratio: 4, att: 20, rel: 600, hold: 150, key: 20}
+}; }
+function merge(base, saved) {
+  if (saved === undefined || saved === null) return base;
+  if (Array.isArray(base)) return base.map((b, i) => merge(b, saved[i]));
+  if (base && typeof base === 'object') { for (const k in base) base[k] = merge(base[k], saved[k]); return base; }
+  return typeof saved === typeof base ? saved : base;
+}
+function interp(pts, t) {
+  if (!pts || !pts.length) return 0;
+  if (t <= pts[0][0]) return pts[0][1];
+  for (let i = 1; i < pts.length; i++) if (t <= pts[i][0]) { const a = pts[i - 1], b = pts[i], k = b[0] === a[0] ? 1 : (t - a[0]) / (b[0] - a[0]); return a[1] + (b[1] - a[1]) * k; }
+  return pts[pts.length - 1][1];
+}
+/* ===== Worklet sources (chạy trong AudioWorkletGlobalScope) ===== */
+const DUCK_SRC = `
+class SfDuck extends AudioWorkletProcessor {
+  constructor() {
+    super();
+    this.p = {on: 0, mode: 0, thr: -40, amount: -10, ratio: 4, att: 0.02, rel: 0.6, hold: 0.15, knee: 6, key: 20};
+    this.env = 0; this.gr = 0; this.hold = 0; this.lp = [0, 0]; this.n = 0;
+    this.port.onmessage = e => { Object.assign(this.p, e.data); };
+  }
+  process(inputs, outputs) {
+    const m = inputs[0] || [], k = inputs[1] || [], o = outputs[0], n = o[0].length, p = this.p, sr = sampleRate;
+    const aAtt = Math.exp(-1 / (Math.max(p.att, 0.0005) * sr)), aRel = Math.exp(-1 / (Math.max(p.rel, 0.005) * sr));
+    const envRel = Math.exp(-1 / (0.05 * sr)), hpa = p.key > 20 ? Math.exp(-2 * Math.PI * p.key / sr) : 0;
+    for (let i = 0; i < n; i++) {
+      let peak = 0;
+      for (let c = 0; c < k.length && c < 2; c++) {
+        let v = k[c][i];
+        if (hpa) { this.lp[c] = (1 - hpa) * v + hpa * this.lp[c]; v -= this.lp[c]; }
+        const a = v < 0 ? -v : v; if (a > peak) peak = a;
+      }
+      this.env = peak > this.env * envRel ? peak : this.env * envRel;
+      const db = 20 * Math.log10(this.env + 1e-9);
+      let target = 0;
+      if (p.on) {
+        if (p.mode === 0) {
+          if (db > p.thr) this.hold = Math.round(p.hold * sr); else if (this.hold > 0) this.hold--;
+          target = (db > p.thr || this.hold > 0) ? p.amount : 0;
+        } else {
+          const over = db - p.thr, kn = Math.max(p.knee, 0.01);
+          if (2 * over < -kn) target = 0;
+          else if (2 * Math.abs(over) <= kn) target = (1 / p.ratio - 1) * Math.pow(over + kn / 2, 2) / (2 * kn);
+          else target = (1 / p.ratio - 1) * over;
+        }
+      }
+      this.gr += (target - this.gr) * (1 - (target < this.gr ? aAtt : aRel));
+      const g = Math.pow(10, this.gr / 20);
+      for (let c = 0; c < o.length; c++) o[c][i] = (m[c] ? m[c][i] : (m[0] ? m[0][i] : 0)) * g;
+    }
+    this.n += n; if (this.n >= 2400) { this.n = 0; this.port.postMessage({gr: this.gr}); }
+    return true;
+  }
+}
+registerProcessor('sf-duck', SfDuck);
+`;
+const METER_SRC = `
+class SfMeter extends AudioWorkletProcessor {
+  constructor() {
+    super();
+    const fs = sampleRate, sh = (() => { const f0 = 1681.974450955533, G = 3.999843853973347, Q = 0.7071752369554196, K = Math.tan(Math.PI * f0 / fs),
+      Vh = Math.pow(10, G / 20), Vb = Math.pow(Vh, 0.4996667741545416), a0 = 1 + K / Q + K * K;
+      return {b: [(Vh + Vb * K / Q + K * K) / a0, 2 * (K * K - Vh) / a0, (Vh - Vb * K / Q + K * K) / a0], a: [2 * (K * K - 1) / a0, (1 - K / Q + K * K) / a0]}; })();
+    const hp = (() => { const f0 = 38.13547087602444, Q = 0.5003270373238773, K = Math.tan(Math.PI * f0 / fs), a0 = 1 + K / Q + K * K;
+      return {b: [1 / a0, -2 / a0, 1 / a0], a: [2 * (K * K - 1) / a0, (1 - K / Q + K * K) / a0]}; })();
+    this.f = [sh, hp]; this.st = [0, 1].map(() => [[0, 0, 0, 0], [0, 0, 0, 0]]);
+    this.blk = Math.round(fs * 0.1); this.reset();
+    // nội suy 4x (sinc cửa sổ Hann, 12 điểm) cho True Peak
+    this.C = [0.25, 0.5, 0.75].map(d => { const c = []; let s = 0; for (let j = 0; j < 12; j++) { const t = (j - 5) - d, x = Math.PI * t,
+      sinc = Math.abs(t) < 1e-9 ? 1 : Math.sin(x) / x, w = Math.abs(t) < 6 ? 0.5 * (1 + Math.cos(Math.PI * t / 6)) : 0; c.push(sinc * w); s += sinc * w; } return c.map(v => v / s); });
+    this.hist = [new Float32Array(12), new Float32Array(12)]; this.run = 1;
+    this.port.onmessage = e => { if (e.data.reset) this.reset(); if ('run' in e.data) this.run = e.data.run; };
+  }
+  reset() { this.cnt = 0; this.sum = [0, 0]; this.blocks = []; this.wins = []; this.tp = 0; this.peak = 0; this.nb = 0; }
+  lufs(z) { return z > 0 ? -0.691 + 10 * Math.log10(z) : -Infinity; }
+  process(inputs, outputs) {
+    if (!this.run) return true;
+    const inp = inputs[0] || [], n = (outputs[0] && outputs[0][0]) ? outputs[0][0].length : 128;
+    if (!inp.length) { return true; }
+    for (let i = 0; i < n; i++) {
+      for (let c = 0; c < 2; c++) {
+        const x = (inp[c] || inp[0])[i];
+        const ax = x < 0 ? -x : x; if (ax > this.peak) this.peak = ax;
+        const h = this.hist[c]; h.copyWithin(0, 1); h[11] = x;
+        let a = Math.abs(h[5]); if (a > this.tp) this.tp = a;
+        for (let p = 0; p < 3; p++) { let s = 0; const C = this.C[p]; for (let j = 0; j < 12; j++) s += C[j] * h[j]; if (s < 0) s = -s; if (s > this.tp) this.tp = s; }
+        let y = x;
+        for (let q = 0; q < 2; q++) { const f = this.f[q], s = this.st[c][q], out = f.b[0] * y + f.b[1] * s[0] + f.b[2] * s[1] - f.a[0] * s[2] - f.a[1] * s[3];
+          s[1] = s[0]; s[0] = y; s[3] = s[2]; s[2] = out; y = out; }
+        this.sum[c] += y * y;
+      }
+      if (++this.cnt >= this.blk) { this.endBlock(); }
+    }
+    return true;
+  }
+  endBlock() {
+    const z = (this.sum[0] + this.sum[1]) / this.blk; this.sum = [0, 0]; this.cnt = 0; this.nb++;
+    this.blocks.push(z); if (this.blocks.length > 30) this.blocks.shift();
+    let m = -Infinity, s = -Infinity, integ = -Infinity;
+    if (this.blocks.length >= 4) {
+      const w = this.blocks.slice(-4).reduce((a, b) => a + b, 0) / 4; m = this.lufs(w); this.wins.push(w);
+      if (this.blocks.length >= 30) s = this.lufs(this.blocks.reduce((a, b) => a + b, 0) / 30);
+      const kept = this.wins.filter(v => this.lufs(v) > -70);
+      if (kept.length) { const zr = kept.reduce((a, b) => a + b, 0) / kept.length, rel = this.lufs(zr) - 10, k2 = kept.filter(v => this.lufs(v) > rel);
+        if (k2.length) integ = this.lufs(k2.reduce((a, b) => a + b, 0) / k2.length); }
+    }
+    this.port.postMessage({m: m, s: s, i: integ, tp: this.tp > 0 ? 20 * Math.log10(this.tp) : -Infinity, peak: this.peak > 0 ? 20 * Math.log10(this.peak) : -Infinity, t: this.nb * 0.1});
+  }
+}
+registerProcessor('sf-meter', SfMeter);
+`;
+
+function autoMakeupDb(thr, knee, ratio) {   // DynamicsCompressorNode tự cộng makeup = (1/fullRangeGain)^0.6; trả về mức dB đó để bù ngược
+  const l2d = x => 20 * Math.log10(x), d2l = d => Math.pow(10, d / 20), slope = 1 / ratio, lt = d2l(thr);
+  const kc = (x, k) => x < lt ? x : lt + (1 - Math.exp(-k * (x - lt))) / k;
+  const slopeAt = (x, k) => { if (x < lt) return 1; const x2 = x * 1.001; return (l2d(kc(x2, k)) - l2d(kc(x, k))) / (l2d(x2) - l2d(x)); };
+  const kth = d2l(thr + knee); let minK = 0.1, maxK = 10000, k = 5;
+  for (let i = 0; i < 15; i++) { if (slopeAt(kth, k) < slope) maxK = k; else minK = k; k = Math.sqrt(minK * maxK); }
+  const ykDb = l2d(kc(kth, k)), full = 1 < kth ? kc(1, k) : d2l(ykDb + slope * (0 - (thr + knee)));
+  return -0.6 * l2d(full);
+}
+
+function genIR(ctx, sec) {
+  const sr = ctx.sampleRate, len = Math.max(1, Math.floor(sr * sec)), b = ctx.createBuffer(2, len, sr);
+  for (let c = 0; c < 2; c++) { const d = b.getChannelData(c); for (let i = 0; i < len; i++) d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / len, 3.5); }
+  return b;
+}
+function create(ctx, opt) {
+  opt = opt || {};
+  const G = () => ctx.createGain(), E = {ctx, immediate: !!opt.immediate, revSize: 0, auto: new WeakMap(), duckGR: 0};
+  const set = (p, v) => { if (E.immediate) p.value = v; else p.setTargetAtTime(v, ctx.currentTime, 0.02); }; E.set = set;
+  const biq = (type, f, q) => { const n = ctx.createBiquadFilter(); n.type = type; n.frequency.value = f; if (q !== undefined) n.Q.value = q; return n; };
+  const chain = a => { for (let i = 0; i < a.length - 1; i++) a[i].connect(a[i + 1]); return a; };
+  const sw = (inN, pIn, pOut) => { const dry = G(), wet = G(), out = G(); inN.connect(dry); dry.connect(out); inN.connect(pIn); pOut.connect(wet); wet.connect(out); wet.gain.value = 0; return {dry, wet, out}; };
+  const mkComp = () => { const c = ctx.createDynamicsCompressor(); c.knee.value = 6; c.attack.value = 0.01; c.release.value = 0.2; return c; };
+  E.in = G(); E.out = G(); E.mix = G(); E.meterIn = G();
+  E.bus = {music: G(), sfx: G()}; E.bus.music.connect(E.mix); E.bus.sfx.connect(E.mix);
+  // 8-band EQ
+  E.eq = BANDS.map(b => { const n = biq(b[0], b[1], b[2]); n.gain.value = 0; return n; });
+  chain([E.in].concat(E.eq));
+  // Multiband (LR4 3 dải) — nhánh thấp có allpass bù pha để tổng phẳng
+  const mbIn = G(), mbSum = G(), f = E.mbF = {lowLP1: [biq('lowpass', 200, QDB), biq('lowpass', 200, QDB)], lowAP: biq('allpass', 2500, 0.7071),
+    midHP1: [biq('highpass', 200, QDB), biq('highpass', 200, QDB)], midLP2: [biq('lowpass', 2500, QDB), biq('lowpass', 2500, QDB)], highHP2: [biq('highpass', 2500, QDB), biq('highpass', 2500, QDB)]};
+  E.mbC = [mkComp(), mkComp(), mkComp()]; E.mbM = [G(), G(), G()];
+  const paths = [f.lowLP1.concat([f.lowAP]), f.midHP1.concat(f.midLP2), f.highHP2];
+  paths.forEach((p, i) => { chain(p); mbIn.connect(p[0]); p[p.length - 1].connect(E.mbC[i]); E.mbC[i].connect(E.mbM[i]); E.mbM[i].connect(mbSum); });
+  E.mbSw = sw(E.eq[7], mbIn, mbSum);
+  // Compressor
+  E.comp = mkComp(); E.compMk = G(); E.comp.connect(E.compMk); E.cp = sw(E.mbSw.out, E.comp, E.compMk);
+  // Gửi Delay / Reverb
+  const sum = G(); E.cp.out.connect(sum);
+  E.delay = ctx.createDelay(2); E.dTone = biq('lowpass', 6000, QDB); E.dFb = G(); E.dWet = G();
+  E.cp.out.connect(E.delay); E.delay.connect(E.dTone); E.dTone.connect(E.dFb); E.dFb.connect(E.delay); E.dTone.connect(E.dWet); E.dWet.connect(sum);
+  E.pre = ctx.createDelay(0.5); E.conv = ctx.createConvolver(); E.damp = biq('lowpass', 9000, QDB); E.rWet = G();
+  E.cp.out.connect(E.pre); E.pre.connect(E.conv); E.conv.connect(E.damp); E.damp.connect(E.rWet); E.rWet.connect(sum);
+  // Pan -> Limiter -> Clip
+  E.pan = ctx.createStereoPanner ? ctx.createStereoPanner() : G(); sum.channelCount = 2; sum.channelCountMode = 'explicit'; sum.channelInterpretation = 'speakers'; sum.connect(E.pan);
+  E.lim = ctx.createDynamicsCompressor(); E.lim.knee.value = 0; E.lim.ratio.value = 20; E.lim.attack.value = 0.001;
+  E.limMk = G(); E.lim.connect(E.limMk); E.lmSw = sw(E.pan, E.lim, E.limMk); E.clip = ctx.createWaveShaper(); E.clip.oversample = 'none'; E.lmSw.out.connect(E.clip); E.clip.connect(E.out);
+  E.out.connect(E.meterIn);
+  E.ana = ctx.createAnalyser(); E.ana.fftSize = 4096; E.ana.smoothingTimeConstant = 0.8; E.meterIn.connect(E.ana);
+  E.setSize = sec => { if (Math.abs(sec - E.revSize) > 0.001) { E.revSize = sec; E.conv.buffer = genIR(ctx, sec); } };
+  E.setClip = c => { if (E.clipC === c) return; E.clipC = c;
+    if (c >= 1) { E.clip.curve = null; return; }
+    const N = 2049, cv = new Float32Array(N); for (let i = 0; i < N; i++) { const x = -1 + 2 * i / (N - 1); cv[i] = Math.max(-c, Math.min(c, x)); } E.clip.curve = cv; };
+  E.apply = function (P, tier) {
+    E.lastP = P; E.lastTier = tier;
+    const adv = tier !== 'basic', pro = tier === 'pro', act = new Set(TIER_BANDS[tier]), D0 = defaults();
+    E.eq.forEach((n, i) => { const b = P.eq[i]; set(n.frequency, b.f); set(n.Q, b.q); set(n.gain, act.has(i) ? b.g : 0); });
+    const c = P.comp, con = adv && c.on;
+    set(E.cp.wet.gain, con ? 1 : 0); set(E.cp.dry.gain, con ? 0 : 1);
+    set(E.comp.threshold, c.thr); set(E.comp.ratio, c.ratio); set(E.comp.knee, pro ? c.knee : 12); set(E.comp.attack, c.att / 1000); set(E.comp.release, c.rel / 1000); set(E.compMk.gain, db2g(c.mk - autoMakeupDb(c.thr, pro ? c.knee : 12, c.ratio)));
+    const m = P.mb, mon = pro && m.on; set(E.mbSw.wet.gain, mon ? 1 : 0); set(E.mbSw.dry.gain, mon ? 0 : 1);
+    [].concat(E.mbF.lowLP1, E.mbF.midHP1).forEach(n => set(n.frequency, m.x1)); [].concat(E.mbF.midLP2, E.mbF.highHP2, [E.mbF.lowAP]).forEach(n => set(n.frequency, m.x2));
+    m.b.forEach((b, i) => { set(E.mbC[i].threshold, b.thr); set(E.mbC[i].ratio, b.ratio); set(E.mbM[i].gain, db2g(b.mk - autoMakeupDb(b.thr, 6, b.ratio))); });
+    const d = P.delay, don = adv && d.on; set(E.delay.delayTime, d.time / 1000); set(E.dTone.frequency, d.tone); set(E.dFb.gain, don ? Math.min(d.fb, 0.9) : 0); set(E.dWet.gain, don ? d.mix : 0);
+    const r = P.rev; E.setSize(r.size); set(E.pre.delayTime, (adv ? r.pre : D0.rev.pre) / 1000); set(E.damp.frequency, adv ? r.damp : D0.rev.damp); set(E.rWet.gain, (r.on || !adv) ? r.mix : 0);
+    if (E.pan.pan) set(E.pan.pan, P.pan);
+    const l = P.lim, lon = adv && l.on; set(E.lmSw.wet.gain, lon ? 1 : 0); set(E.lmSw.dry.gain, lon ? 0 : 1);
+    set(E.lim.threshold, l.ceil); set(E.limMk.gain, db2g(-autoMakeupDb(l.ceil, 0, 20))); set(E.lim.release, l.rel / 1000); E.setClip(lon ? db2g(l.ceil) : 1); if (E.onLimiter) E.onLimiter(lon);
+    const k = P.duck, dn = adv && k.on, dd = D0.duck;
+    E.duckMsg = {on: dn ? 1 : 0, mode: pro ? 1 : 0, amount: k.amount, rel: k.rel / 1000, thr: pro ? k.thr : dd.thr, ratio: pro ? k.ratio : dd.ratio, att: (pro ? k.att : dd.att) / 1000, hold: (pro ? k.hold : dd.hold) / 1000, key: pro ? k.key : dd.key, knee: 6};
+    if (E.duck) E.duck.port.postMessage(E.duckMsg);
+    if (E.meter) E.meter.port.postMessage({run: pro ? 1 : 0});
+  };
+  E.attachWorklets = async function () {
+    if (!ctx.audioWorklet || typeof AudioWorkletNode === 'undefined') return false;
+    const url = URL.createObjectURL(new Blob([DUCK_SRC, METER_SRC], {type: 'text/javascript'}));
+    try { await ctx.audioWorklet.addModule(url); } finally { URL.revokeObjectURL(url); }
+    const opts = n => ({numberOfInputs: n, numberOfOutputs: 1, outputChannelCount: [2], channelCount: 2, channelCountMode: 'explicit'});
+    const duck = new AudioWorkletNode(ctx, 'sf-duck', opts(2));
+    E.bus.music.disconnect(E.mix); E.bus.music.connect(duck, 0, 0); E.bus.sfx.connect(duck, 0, 1); duck.connect(E.mix);
+    duck.port.onmessage = ev => { E.duckGR = ev.data.gr; };
+    const meter = new AudioWorkletNode(ctx, 'sf-meter', opts(1)); E.meterIn.connect(meter); meter.connect(ctx.destination);
+    meter.port.onmessage = ev => { E.meterData = ev.data; if (E.onMeter) E.onMeter(ev.data); };
+    E.duck = duck; E.meter = meter; if (E.lastP) E.apply(E.lastP, E.lastTier); return true;
+  };
+  return E;
+}
+// ===================== TRẠNG THÁI + API =====================
+const MQ = window.matchMedia('(min-width:768px)'), TNAME = {basic: '🟢 Basic', adv: '🟡 Advanced', pro: '🔴 Pro'};
+let S, saveT = 0, snapMode = false, selPreset = 'f:0';
+function loadState() {
+  let sv = null; try { sv = JSON.parse(localStorage.getItem(LS) || 'null'); } catch (e) {}
+  S = {tier: 'basic', ab: 'A', A: defaults(), B: defaults(), presets: [], snaps: []};
+  if (sv) { S.tier = TIERS.indexOf(sv.tier) >= 0 ? sv.tier : 'basic'; S.ab = sv.ab === 'B' ? 'B' : 'A'; S.A = merge(defaults(), sv.A); S.B = merge(defaults(), sv.B);
+    S.presets = Array.isArray(sv.presets) ? sv.presets.filter(p => p && p.name && p.fx) : []; S.snaps = Array.isArray(sv.snaps) ? sv.snaps.slice(0, 8) : []; }
+  while (S.snaps.length < 8) S.snaps.push(null);
+}
+function save() { clearTimeout(saveT); saveT = setTimeout(() => { try { localStorage.setItem(LS, JSON.stringify(S)); } catch (e) {} }, 250); }
+const P = () => S[S.ab], $ = id => document.getElementById(id);
+const API = {active: false, engine: null, bus: null, _create: create, _defaults: defaults, _interp: interp, _merge: merge, _autoMakeupDb: autoMakeupDb, TIER_BANDS: TIER_BANDS};
+API.state = () => S;
+function sync() { if (!S) loadState(); if (API.engine) API.engine.apply(P(), S.tier); }
+API.sync = sync;
+API.install = function (ctx, master, legacy) {
+  if (API.active || !MQ.matches) return;
+  const E = create(ctx); API.engine = E; API.bus = E.bus;
+  master.disconnect(); master.connect(E.in); E.out.connect(legacy); E.mix.connect(master); legacy.connect(E.meterIn);
+  E.onLimiter = on => { try { const t = ctx.currentTime, v = on ? [0, 0, 1] : [-3, 6, 12];   // bộ giới hạn cũ: trong suốt khi Limiter mới bật
+    legacy.threshold.setTargetAtTime(v[0], t, 0.02); legacy.knee.setTargetAtTime(v[1], t, 0.02); legacy.ratio.setTargetAtTime(v[2], t, 0.02); } catch (e) {} };
+  API.active = true; sync();
+  E.attachWorklets().catch(err => console.warn('FX worklet:', err));
+  setInterval(autoTick, 50);
+};
+API.route = function (source, bus, audio) { const E = API.engine, g = E.ctx.createGain(); source.connect(g); g.connect(E.bus[bus] || E.bus.music); E.auto.set(audio, g); };
+window.StageFX = API;
+// ===================== AUTOMATION (độ lớn theo thời gian, theo từng tiết mục) =====================
+const durCache = {};
+function autoTick() {
+  const E = API.engine; if (!E) return; const now = E.ctx.currentTime;
+  for (const id in activeAudioInstances) {
+    const inst = activeAudioInstances[id]; if (!inst || inst.type !== 'audio' || !inst.audio) continue;
+    if (isFinite(inst.audio.duration)) durCache[id] = inst.audio.duration;
+    const g = E.auto.get(inst.audio); if (!g) continue;
+    const tr = programCues.find(c => c.id === id), a = tr && tr.automation; let v = 1;
+    if (S.tier === 'pro' && a && a.on && a.pts && a.pts.length) v = db2g(interp(a.pts, inst.audio.currentTime));
+    if (Math.abs((g._v === undefined ? 1 : g._v) - v) > 1e-4) { g._v = v; g.gain.setTargetAtTime(v, now, 0.03); }
+  }
+}
+// ===================== UI =====================
+function el(tag, props, ...kids) {
+  const e = document.createElement(tag);
+  for (const k in props || {}) { const v = props[k]; if (k === 'class') e.className = v; else if (k.slice(0, 2) === 'on') e.addEventListener(k.slice(2), v); else e.setAttribute(k, v); }
+  kids.flat().forEach(c => { if (c !== null && c !== undefined && c !== false) e.append(c); });
+  if (tag === 'button') e.addEventListener('click', () => e.blur());
+  return e;
+}
+const F = {db: v => (v > 0 ? '+' : '') + (+v).toFixed(1) + ' dB', hz: v => v >= 1000 ? (v / 1000).toFixed(v % 1000 ? 1 : 0) + ' kHz' : Math.round(v) + ' Hz', ms: v => Math.round(v) + ' ms', x: v => (+v).toFixed(1) + ':1',
+  s: v => (+v).toFixed(1) + ' s', n: v => (+v).toFixed(2), pan: v => v === 0 ? 'Giữa' : (v < 0 ? 'T ' : 'P ') + Math.round(Math.abs(v) * 100), lv: v => isFinite(v) ? (+v).toFixed(1) : '−∞'};
+function changed() { sync(); save(); drawEQ(); }
+function sl(label, obj, key, min, max, step, f) {
+  const val = el('span', {class: 'fx-v'}, f(obj[key])), inp = el('input', {type: 'range', min, max, step});
+  inp.value = obj[key];
+  inp.addEventListener('input', () => { obj[key] = parseFloat(inp.value); val.textContent = f(obj[key]); changed(); });
+  return el('label', {class: 'fx-row'}, el('span', {}, label), inp, val);
+}
+function tg(obj, key, text) {
+  const c = el('input', {type: 'checkbox'}); c.checked = !!obj[key];
+  c.addEventListener('change', () => { obj[key] = c.checked; changed(); });
+  return el('label', {class: 'fx-tog'}, c, el('span', {}, text || 'Bật'));
+}
+const mod = (title, right, ...kids) => el('div', {class: 'fx-mod'}, el('h4', {}, el('span', {}, title), right || ''), ...kids);
+const grBar = id => el('div', {class: 'fx-gr', title: 'Gain reduction'}, el('i', {id}));
+function volPan() {
+  const mv = $('masterVolume'), val = el('span', {class: 'fx-v'}, mv ? Math.round(mv.value * 100) + '%' : ''), inp = el('input', {type: 'range', min: 0, max: 1, step: 0.01, id: 'fxVol'});
+  inp.value = mv ? mv.value : 1;
+  inp.addEventListener('input', () => { if (mv) { mv.value = inp.value; mv.dispatchEvent(new Event('input', {bubbles: true})); } val.textContent = Math.round(inp.value * 100) + '%'; });
+  return mod('Volume · Pan', '', el('label', {class: 'fx-row'}, el('span', {}, 'Volume'), inp, val), sl('Pan', P(), 'pan', -1, 1, 0.01, F.pan));
+}
+function eqMod() {
+  const t = S.tier, p = P(), m = mod(t === 'basic' ? 'EQ (Bass · Mid · Treble)' : t === 'adv' ? 'Parametric EQ — 5 dải' : '8-band EQ');
+  if (t !== 'basic') m.append(el('canvas', {class: 'fx-cv', id: 'fxEqCv', width: 560, height: 120}));
+  TIER_BANDS[t].forEach(i => { const b = p.eq[i], shelf = i === 0 || i === 7, row = el('div', {class: 'fx-eqrow'}), val = el('span', {class: 'fx-v'}, F.db(b.g)), g = el('input', {type: 'range', min: -12, max: 12, step: 0.5});
+    g.value = b.g; g.addEventListener('input', () => { b.g = parseFloat(g.value); val.textContent = F.db(b.g); changed(); });
+    row.append(el('span', {}, t === 'basic' ? BANDS[i][3] : 'B' + (i + 1)), g, val);
+    if (t !== 'basic') {
+      const f = el('input', {type: 'number', class: 'fx-num', min: 20, max: 20000, step: 1, value: b.f, title: 'Tần số (Hz)'}); f.addEventListener('change', () => { b.f = Math.max(20, Math.min(20000, +f.value || b.f)); f.value = b.f; changed(); });
+      const q = el('input', {type: 'number', class: 'fx-num', min: 0.1, max: 10, step: 0.1, value: b.q, title: 'Q'}); if (shelf) q.disabled = true; q.addEventListener('change', () => { b.q = Math.max(0.1, Math.min(10, +q.value || b.q)); q.value = b.q; changed(); });
+      row.append(f, q);
+    }
+    m.append(row); });
+  return m;
+}
+function compMod() {
+  const c = P().comp, pro = S.tier === 'pro', m = mod(pro ? 'Dynamic Compressor' : 'Compressor', tg(c, 'on'));
+  m.append(sl('Threshold', c, 'thr', -60, 0, 1, F.db), sl('Ratio', c, 'ratio', 1, 20, 0.5, F.x), sl('Attack', c, 'att', 1, 200, 1, F.ms), sl('Release', c, 'rel', 20, 1000, 10, F.ms));
+  if (pro) m.append(sl('Knee', c, 'knee', 0, 40, 1, F.db));
+  m.append(sl('Makeup', c, 'mk', 0, 18, 0.5, F.db), grBar('fxGrComp')); return m;
+}
+function mbMod() {
+  const x = P().mb, m = mod('Multiband Compressor (3 dải)', tg(x, 'on'));
+  m.append(sl('Chia 1', x, 'x1', 60, 800, 10, F.hz), sl('Chia 2', x, 'x2', 1000, 8000, 50, F.hz));
+  ['Thấp', 'Giữa', 'Cao'].forEach((n, i) => m.append(el('div', {class: 'fx-sub'}, n), sl('Threshold', x.b[i], 'thr', -60, 0, 1, F.db), sl('Ratio', x.b[i], 'ratio', 1, 20, 0.5, F.x), sl('Makeup', x.b[i], 'mk', 0, 18, 0.5, F.db), grBar('fxGrMb' + i)));
+  return m;
+}
+function limMod() { const l = P().lim, m = mod('Limiter', tg(l, 'on')); m.append(sl('Ceiling', l, 'ceil', -12, 0, 0.5, F.db), sl('Release', l, 'rel', 20, 500, 10, F.ms)); return m; }
+function delMod() { const d = P().delay, m = mod('Delay', tg(d, 'on')); m.append(sl('Time', d, 'time', 20, 1200, 10, F.ms), sl('Feedback', d, 'fb', 0, 0.9, 0.01, F.n), sl('Tone', d, 'tone', 1000, 12000, 100, F.hz), sl('Mix', d, 'mix', 0, 1, 0.01, F.n)); return m; }
+function revMod() {
+  const r = P().rev, adv = S.tier !== 'basic', m = mod('Reverb', adv ? tg(r, 'on') : '');
+  m.append(sl('Size', r, 'size', 0.3, 4, 0.1, F.s)); if (adv) m.append(sl('Damping', r, 'damp', 2000, 14000, 100, F.hz), sl('Pre-delay', r, 'pre', 0, 100, 1, F.ms));
+  m.append(sl('Mix', r, 'mix', 0, 1, 0.01, F.n)); return m;
+}
+function duckMod() {
+  const k = P().duck, pro = S.tier === 'pro', m = mod(pro ? 'Sidechain (khóa: kênh hiệu ứng → nhạc)' : 'Ducking (hạ nhạc khi có hiệu ứng)', tg(k, 'on'));
+  if (pro) m.append(sl('Threshold', k, 'thr', -60, -10, 1, F.db), sl('Ratio', k, 'ratio', 1.5, 20, 0.5, F.x), sl('Attack', k, 'att', 1, 200, 1, F.ms), sl('Release', k, 'rel', 50, 2000, 10, F.ms), sl('Key HPF', k, 'key', 20, 500, 5, F.hz));
+  else m.append(sl('Hạ', k, 'amount', -24, -3, 1, F.db), sl('Release', k, 'rel', 100, 2000, 50, F.ms));
+  m.append(grBar('fxGrDuck')); return m;
+}
+function meterMod() {
+  const cell = (id, t) => el('div', {class: 'fx-cell'}, el('b', {id}, '—'), el('small', {}, t));
+  return el('div', {class: 'fx-mod fx-wide'}, el('h4', {}, el('span', {}, 'Meters · LUFS · True Peak · Spectrum'), el('button', {class: 'fx-btn', onclick: () => { const E = API.engine; if (E && E.meter) E.meter.port.postMessage({reset: 1}); }}, 'Reset')),
+    el('div', {class: 'fx-cells'}, cell('fxM', 'Momentary LUFS'), cell('fxS', 'Short-term LUFS'), cell('fxI', 'Integrated LUFS'), cell('fxTP', 'True Peak dBTP'), cell('fxPk', 'Sample Peak dBFS')),
+    el('canvas', {class: 'fx-cv', id: 'fxSpec', width: 1000, height: 110}));
+}
+// ---------- Automation editor ----------
+function autoMod() {
+  const m = el('div', {class: 'fx-mod fx-wide'}), cvs = el('canvas', {class: 'fx-cv', width: 1000, height: 150}), sel = el('select', {class: 'fx-num'});
+  programCues.forEach(c => sel.append(new Option(c.title, c.id)));
+  const info = el('span', {class: 'fx-v'}, 'Nhấp để thêm điểm · kéo để di chuyển · nhấp đúp để xóa · chỉ áp dụng cho tiết mục dùng file nhạc (không áp dụng cho âm thanh mẫu)'); let cue = programCues.find(c => c.id === sel.value) || programCues[0];
+  const tog = el('input', {type: 'checkbox'}), clear = el('button', {class: 'fx-btn', onclick: () => { if (!cue || isLiveLocked) return; cue.automation = {on: false, pts: []}; tog.checked = false; saveLocalData(); draw(); }}, 'Xóa hết');
+  const A = () => (cue.automation = cue.automation || {on: false, pts: []}), dur = () => Math.max(durCache[cue.id] || 180, 20, ...(A().pts.map(p => p[0] * 1.1)));
+  const X = t => 30 + t / dur() * (cvs.width - 40), Y = d => 8 + (6 - d) / 36 * (cvs.height - 20), T = x => Math.max(0, (x - 30) / (cvs.width - 40) * dur()), D = y => Math.max(-30, Math.min(6, 6 - (y - 8) / (cvs.height - 20) * 36));
+  function draw() { const g = cvs.getContext('2d'); g.clearRect(0, 0, cvs.width, cvs.height); if (!cue) return;
+    g.font = '11px system-ui'; g.fillStyle = '#64748b'; g.strokeStyle = '#243049';
+    [6, 0, -12, -24].forEach(d => { g.beginPath(); g.moveTo(30, Y(d)); g.lineTo(cvs.width - 10, Y(d)); g.stroke(); g.fillText(d + '', 4, Y(d) + 4); });
+    for (let i = 0; i <= 6; i++) { const t = dur() * i / 6; g.fillText(Math.floor(t / 60) + ':' + String(Math.floor(t % 60)).padStart(2, '0'), X(t) - 10, cvs.height - 2); }
+    const pts = A().pts; g.strokeStyle = A().on ? '#fbbf24' : '#64748b'; g.lineWidth = 2; g.beginPath();
+    g.moveTo(X(0), Y(pts.length ? pts[0][1] : 0)); pts.forEach(p => g.lineTo(X(p[0]), Y(p[1]))); g.lineTo(X(dur()), Y(pts.length ? pts[pts.length - 1][1] : 0)); g.stroke();
+    g.fillStyle = '#fbbf24'; pts.forEach(p => { g.beginPath(); g.arc(X(p[0]), Y(p[1]), 5, 0, 6.3); g.fill(); });
+    const inst = activeAudioInstances[cue.id]; if (inst && inst.audio) { g.strokeStyle = '#34d399'; g.beginPath(); g.moveTo(X(inst.audio.currentTime), 6); g.lineTo(X(inst.audio.currentTime), cvs.height - 14); g.stroke(); } }
+  m._draw = draw; let drag = -1;
+  const pos = e => { const r = cvs.getBoundingClientRect(); return [(e.clientX - r.left) * cvs.width / r.width, (e.clientY - r.top) * cvs.height / r.height]; };
+  const near = (x, y) => A().pts.findIndex(p => Math.hypot(X(p[0]) - x, Y(p[1]) - y) < 10);
+  cvs.addEventListener('pointerdown', e => { if (!cue) return; if (isLiveLocked) return showToast('Đang bật Live Lock Mode!', 'error'); const [x, y] = pos(e); let i = near(x, y);
+    if (i < 0) { const pts = A().pts; pts.push([T(x), D(y)]); pts.sort((a, b) => a[0] - b[0]); i = near(x, y); A().on = true; tog.checked = true; }
+    drag = i; cvs.setPointerCapture(e.pointerId); draw(); });
+  cvs.addEventListener('pointermove', e => { if (drag < 0) return; const [x, y] = pos(e), pts = A().pts, p = pts[drag]; p[0] = T(x); p[1] = Math.round(D(y) * 2) / 2; const q = p; pts.sort((a, b) => a[0] - b[0]); drag = pts.indexOf(q); draw(); });
+  cvs.addEventListener('pointerup', () => { if (drag >= 0) { drag = -1; saveLocalData(); } });
+  cvs.addEventListener('dblclick', e => { const [x, y] = pos(e), i = near(x, y); if (i >= 0 && !isLiveLocked) { A().pts.splice(i, 1); saveLocalData(); draw(); } });
+  tog.addEventListener('change', () => { if (cue && !isLiveLocked) { A().on = tog.checked; saveLocalData(); draw(); } else tog.checked = !tog.checked; });
+  sel.addEventListener('change', () => { cue = programCues.find(c => c.id === sel.value); tog.checked = !!(cue.automation && cue.automation.on); draw(); });
+  tog.checked = !!(cue && cue.automation && cue.automation.on);
+  m.append(el('h4', {}, el('span', {}, 'Automation — độ lớn theo thời gian'), el('span', {class: 'fx-top'}, sel, el('label', {class: 'fx-tog'}, tog, el('span', {}, 'Bật')), clear)), cvs, info);
+  if (!programCues.length) m.append(el('div', {class: 'fx-v'}, 'Chưa có tiết mục.')); draw(); return m;
+}
+// ---------- Preset / Snapshot / A-B ----------
+const FACTORY = [
+  ['Flat (mặc định)', p => p],
+  ['Giọng MC rõ', p => { p.eq[0].g = -8; p.eq[2].g = -2; p.eq[4].g = 3; p.eq[7].g = 1.5; Object.assign(p.comp, {on: true, thr: -22, ratio: 3.5, att: 8, rel: 200, mk: 3}); return p; }],
+  ['Nhạc ấm áp', p => { p.eq[0].g = 3; p.eq[1].g = 1.5; p.eq[5].g = -1; p.eq[7].g = 1; Object.assign(p.rev, {mix: 0.08, size: 1.4}); return p; }],
+  ['Sân khấu mạnh (Loud)', p => { p.eq[0].g = 2.5; p.eq[3].g = -1.5; p.eq[6].g = 2; p.eq[7].g = 2.5; Object.assign(p.comp, {on: true, thr: -20, ratio: 4, mk: 3}); Object.assign(p.lim, {on: true, ceil: -0.5, rel: 80}); return p; }],
+  ['Hội trường vang (Hall)', p => { Object.assign(p.rev, {mix: 0.28, size: 2.8, damp: 6500, pre: 35}); p.eq[7].g = -1; return p; }],
+  ['Hạ nhạc nền khi có hiệu ứng', p => { Object.assign(p.duck, {on: true, amount: -12, thr: -42, rel: 700}); return p; }]
+];
+function loadPreset(v) { const [k, i] = [v[0], +v.slice(2)], fx = k === 'f' ? FACTORY[i][1](defaults()) : S.presets[i] && merge(defaults(), clone(S.presets[i].fx)); if (!fx) return; S[S.ab] = fx; sync(); save(); render(); }
+function savePreset() {
+  const cur = selPreset[0] === 'u' ? S.presets[+selPreset.slice(2)] : null, name = (prompt('Tên preset:', cur ? cur.name : '') || '').trim(); if (!name) return;
+  const i = S.presets.findIndex(p => p.name === name), item = {name, fx: clone(P())}; if (i >= 0) S.presets[i] = item; else S.presets.push(item);
+  selPreset = 'u:' + S.presets.findIndex(p => p.name === name); save(); render();
+}
+function recallSnap(i) {
+  const s = S.snaps[i]; if (!s) return; S[S.ab] = merge(defaults(), clone(s.fx));
+  const mv = $('masterVolume'); if (mv && s.master !== undefined) { mv.value = s.master; mv.dispatchEvent(new Event('input', {bubbles: true})); }
+  for (const id in (s.vols || {})) if (programCues.some(c => c.id === id)) changeTrackVolume(id, s.vols[id]);
+  try { renderCueList(); } catch (e) {} sync(); save(); render(); showToast('Đã gọi snapshot: ' + s.name, 'success');
+}
+function saveSnap(i) {
+  const name = (prompt('Tên snapshot ' + (i + 1) + ':', S.snaps[i] ? S.snaps[i].name : 'Cảnh ' + (i + 1)) || '').trim(); if (!name) return;
+  const mv = $('masterVolume'); S.snaps[i] = {name, fx: clone(P()), master: mv ? parseFloat(mv.value) : 1, vols: Object.fromEntries(programCues.map(c => [c.id, c.volume]))};
+  save(); render();
+}
+function proBar() {
+  const box = el('div', {class: 'fx-pro'}), btn = (t, f, on) => el('button', {class: 'fx-btn' + (on ? ' on' : ''), onclick: f}, t);
+  box.append(el('div', {class: 'fx-top'}, el('b', {}, 'A/B'), btn('A', () => { S.ab = 'A'; sync(); save(); render(); }, S.ab === 'A'), btn('B', () => { S.ab = 'B'; sync(); save(); render(); }, S.ab === 'B'),
+    btn('A → B', () => { S.B = clone(S.A); save(); render(); }), btn('B → A', () => { S.A = clone(S.B); sync(); save(); render(); }),
+    el('b', {style: 'margin-left:14px'}, 'Preset'), (() => { const s = el('select', {class: 'fx-num', style: 'width:auto'}); FACTORY.forEach((f, i) => s.append(new Option(f[0], 'f:' + i))); S.presets.forEach((p, i) => s.append(new Option('★ ' + p.name, 'u:' + i))); s.value = selPreset; s.addEventListener('change', () => { selPreset = s.value; }); return s; })(),
+    btn('Áp dụng', () => loadPreset(selPreset)), btn('Lưu…', savePreset), btn('Xóa', () => { if (selPreset[0] !== 'u') return showToast('Chỉ xóa được preset của bạn.', 'warning'); const i = +selPreset.slice(2); if (S.presets[i] && confirm('Xóa preset "' + S.presets[i].name + '"?')) { S.presets.splice(i, 1); selPreset = 'f:0'; save(); render(); } })));
+  box.append(el('div', {class: 'fx-top'}, el('b', {}, 'Snapshot'), ...S.snaps.map((s, i) => btn((i + 1) + (s ? ' · ' + s.name : ' · trống'), () => (snapMode ? saveSnap(i) : recallSnap(i)))), btn(snapMode ? '💾 Đang ghi' : '💾 Ghi', () => { snapMode = !snapMode; render(); }, snapMode)));
+  return box;
+}
+// ---------- vẽ EQ / meter / spectrum ----------
+function drawEQ() {
+  const cv = $('fxEqCv'); if (!cv) return; const g = cv.getContext('2d'), W = cv.width, H = cv.height, N = 200, f = new Float32Array(N), mag = new Float32Array(N).fill(1), ph = new Float32Array(N);
+  for (let i = 0; i < N; i++) f[i] = 20 * Math.pow(1000, i / (N - 1));
+  const oc = new OfflineAudioContext(1, 1, 48000), act = new Set(TIER_BANDS[S.tier]), p = P();
+  BANDS.forEach((b, i) => { if (!act.has(i)) return; const n = oc.createBiquadFilter(), m = new Float32Array(N); n.type = b[0]; n.frequency.value = p.eq[i].f; n.Q.value = p.eq[i].q; n.gain.value = p.eq[i].g; n.getFrequencyResponse(f, m, ph); for (let k = 0; k < N; k++) mag[k] *= m[k]; });
+  g.clearRect(0, 0, W, H); g.strokeStyle = '#243049'; g.fillStyle = '#64748b'; g.font = '10px system-ui';
+  [-12, -6, 0, 6, 12].forEach(d => { const y = H / 2 - d * H / 30; g.beginPath(); g.moveTo(0, y); g.lineTo(W, y); g.stroke(); g.fillText(d + '', 2, y - 2); });
+  [100, 1000, 10000].forEach(hz => { const x = W * Math.log(hz / 20) / Math.log(1000); g.beginPath(); g.moveTo(x, 0); g.lineTo(x, H); g.stroke(); g.fillText(hz >= 1000 ? hz / 1000 + 'k' : hz, x + 2, H - 3); });
+  g.strokeStyle = '#a5b4fc'; g.lineWidth = 2; g.beginPath(); for (let i = 0; i < N; i++) { const y = H / 2 - 20 * Math.log10(mag[i] || 1e-6) * H / 30, x = W * i / (N - 1); i ? g.lineTo(x, y) : g.moveTo(x, y); } g.stroke();
+}
+let raf = 0;
+function loop() {
+  raf = requestAnimationFrame(loop); const E = API.engine; if (!E) return; const gr = (id, v, max) => { const e = $(id); if (e) e.style.width = Math.max(0, Math.min(100, -v / max * 100)) + '%'; };
+  const pp = P(), adv = S.tier !== 'basic'; gr('fxGrComp', adv && pp.comp.on ? (E.comp.reduction || 0) : 0, 24); E.mbC.forEach((c, i) => gr('fxGrMb' + i, S.tier === 'pro' && pp.mb.on ? (c.reduction || 0) : 0, 24)); gr('fxGrDuck', adv && pp.duck.on ? (E.duckGR || 0) : 0, 24);
+  const d = E.meterData, set = (id, v, cls) => { const e = $(id); if (e) { e.textContent = F.lv(v); e.style.color = cls || ''; } };
+  if (d && S.tier === 'pro') { set('fxM', d.m); set('fxS', d.s); set('fxI', d.i); set('fxTP', d.tp, d.tp > -1 ? '#f43f5e' : d.tp > -2 ? '#f59e0b' : ''); set('fxPk', d.peak); }
+  const sp = $('fxSpec'); if (sp && S.tier === 'pro') { const g = sp.getContext('2d'), W = sp.width, H = sp.height, arr = new Uint8Array(E.ana.frequencyBinCount), hz = E.ctx.sampleRate / E.ana.fftSize; E.ana.getByteFrequencyData(arr);
+    g.clearRect(0, 0, W, H); const B = 90; for (let i = 0; i < B; i++) { const f0 = 30 * Math.pow(18000 / 30, i / B), f1 = 30 * Math.pow(18000 / 30, (i + 1) / B); let mx = 0;
+      for (let k = Math.floor(f0 / hz); k <= Math.max(Math.floor(f0 / hz), Math.floor(f1 / hz)); k++) mx = Math.max(mx, arr[k] || 0);
+      const h = mx / 255 * (H - 4); g.fillStyle = 'hsl(' + (260 - mx / 255 * 200) + ',80%,60%)'; g.fillRect(i * W / B + 1, H - h, W / B - 2, h); } }
+  const am = document.querySelector('.fx-wide canvas'); if (am && am.parentNode._draw) am.parentNode._draw();
+}
+function render() {
+  const body = $('fxBody'); if (!body) return; body.innerHTML = '';
+  const t = S.tier, top = el('div', {class: 'fx-top'}, el('h3', {}, '🎛 Xử lý âm thanh'), ...TIERS.map(x => el('button', {class: 'fx-tab' + (t === x ? ' on' : ''), onclick: () => { S.tier = x; save(); sync(); render(); }}, TNAME[x])),
+    el('span', {class: 'fx-v', style: 'flex:1'}, t === 'basic' ? 'Volume · Pan · EQ · Reverb' : t === 'adv' ? 'Parametric EQ · Compressor · Limiter · Delay · Reverb · Ducking' : '8-band EQ · Compressors · Limiter · LUFS/True Peak · Spectrum · Sidechain · Automation · A/B · Preset · Snapshot'),
+    el('button', {class: 'fx-btn', onclick: closeFx}, '✕ Đóng'));
+  body.append(top); if (t === 'pro') body.append(proBar());
+  const grid = el('div', {class: 'fx-grid'}), list = t === 'basic' ? [volPan, eqMod, revMod] : t === 'adv' ? [volPan, eqMod, compMod, limMod, delMod, revMod, duckMod] : [volPan, eqMod, compMod, mbMod, limMod, delMod, revMod, duckMod, meterMod, autoMod];
+  list.forEach(f => grid.append(f())); body.append(grid);
+  if (t === 'pro' && !(API.engine && API.engine.meter)) body.append(el('div', {class: 'fx-v'}, 'Trình duyệt này chưa hỗ trợ AudioWorklet: không có LUFS/True Peak/Sidechain.'));
+  drawEQ();
+}
+function openFx() { try { getAudioContext(); } catch (e) {} $('fxModal').hidden = false; render(); cancelAnimationFrame(raf); loop(); }
+function closeFx() { $('fxModal').hidden = true; cancelAnimationFrame(raf); }
+function initUI() {
+  loadState();
+  document.body.append(el('div', {id: 'fxModal', hidden: ''}, el('div', {class: 'fx-card'}, el('div', {id: 'fxBody'}))));
+  $('fxModal').addEventListener('pointerdown', e => { if (e.target === $('fxModal')) closeFx(); });
+  document.addEventListener('keydown', e => { if (e.key === 'Escape' && !$('fxModal').hidden) closeFx(); });
+  const fab = el('button', {id: 'fxFab', class: 'fx-fab', title: 'Xử lý âm thanh nâng cao', onclick: openFx}, '🎛 FX');
+  (document.querySelector('header > div:last-child') || document.body).appendChild(fab);
+  const mv = $('masterVolume'); if (mv) mv.addEventListener('input', () => { const v = $('fxVol'); if (v) v.value = mv.value; });
+}
+if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', initUI); else initUI();
+
+})();
+
 </script>
 </body>
 </html>
