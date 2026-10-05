@@ -1,5 +1,5 @@
-const V = 'stageaudio-v3-8';
-const SHELL = ['./', './index.html', './config.js', './manifest.webmanifest', './icon-192.png', './icon-512.png', './icon-192_bk.png', './icon-512_bk.png', './index2.html'];
+const V = 'stageaudio-v3-9';
+const SHELL = ['./', './index.html', './config.js', './manifest.webmanifest', './icon-192.png', './icon-512.png'];
 self.addEventListener('install', e => e.waitUntil(caches.open(V).then(c => Promise.allSettled(SHELL.map(u => c.add(u)))).then(() => self.skipWaiting())));
 self.addEventListener('activate', e => e.waitUntil(caches.keys().then(k => Promise.all(k.filter(x => x !== V).map(x => caches.delete(x)))).then(() => self.clients.claim())));
 // Mở app từ cache (chạy được khi không có mạng), cập nhật ngầm khi có mạng.
